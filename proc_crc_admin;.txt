@@ -1,0 +1,670 @@
+create or replace procedure proc_crc_admin(p_flag     in varchar2,
+                                           p_pageval  in varchar2,
+                                           p_parval1  in varchar2,
+                                           p_parval2  in varchar2,
+                                           p_parval3  in varchar2,
+                                           qry_result OUT RESULT_TYPE.QRY_RESULT)
+
+ is
+ v_splt array;
+ v_cnt2    number;
+ delet_mob    varchar2(60);
+  v_str       array;
+  v_dtl1      array;
+  v_dtl2      array;
+  v_dtl3      array;
+  v_dsplr     array;
+  v_spltr     array;
+  vbucket_id  number;
+  SEQ_LEAD_ID number;
+  v_empde     number;
+  v_exchange  number;
+  v_res       varchar2(4000);
+  v_cnt       number;
+  v_bucketid number;
+  v_lang varchar2(200);
+  v_date date;
+  cnt_v number;
+  v_branchid number;
+  v_mailid varchar2(500);
+  v_lang VARCHAR2(5);
+  buck_id NUMBER;
+
+ 
+begin
+  v_str   := splitstr(p_pageval, '~');
+  v_spltr := splitstr(p_parval1, '~');
+  v_splt:=splitstr(p_parval2, '~');
+  if p_flag = 'get_bucket' then
+  
+    open QRY_RESULT for
+      select '-1', '---------SELECT----------' language_name
+        from dual
+      union all
+      select distinct (t.col_lang_id), t.col_lang language_name
+        from TBL_API_LOCAL_LANGUAGE t order by language_name;
+  
+  elsif p_flag = 'confirm_newbucket' then
+    /*v_dtl1 := splitstr(p_parval1, '$');
+    v_dtl2 := splitstr(v_dtl1(i), '~');*/
+    v_spltr := splitstr(p_parval1, '~');
+    select count(*)
+      into v_cnt
+      from TBL_CRC_BUCKSIZE t
+     where t.buck_lang = v_spltr(2);
+    if v_cnt = 0 then
+      select max(t.BUCKET_ID) + 1
+        into vbucket_id
+        from TBL_CRC_BUCKSIZE t;
+    
+      v_dtl1 := splitstr(p_parval1, '$');
+      for i in 1 .. v_dtl1.count loop
+        if v_dtl1(i) is not null then
+          v_dtl2 := splitstr(v_dtl1(i), '~');
+          v_dtl3 := splitstr(v_dtl2(3), '-');
+          insert into TBL_CRC_BUCKET_emp_dtl
+            (BUCKET_ID,
+             COL_LANGUAGE,
+              
+             EMP_CODE,
+             LANG_ID,
+             INSERTED_DATE,INSERTED_EMP)
+          values
+            (nvl(vbucket_id, 1),
+             v_dtl2(2),
+              
+             v_dtl3(1),
+             v_dtl2(1),
+             sysdate, p_parval2);
+        /*  insert into TBL_CRC_EMP_BUCKETDTL
+            (BUCKET_ID, EMP_CODE)
+          values
+            (nvl(vbucket_id, 1), v_dtl3(1));*/
+        
+          commit;
+        
+        end if;
+      end loop;
+    
+      insert into TBL_CRC_BUCKSIZE
+        (BUCKET_ID, BUCK_SIZE, BUCK_LANG,LANG_ID)
+      values
+        (nvl(vbucket_id, 1), p_pageval, v_spltr(2),v_spltr(1));
+    
+      open QRY_RESULT for
+        select 111 from dual;
+    else
+      open QRY_RESULT for
+        select 333 from dual;
+    end if;
+  elsif p_flag = 'show_bucketdtl' then
+  
+    open QRY_RESULT for
+      select '-1', '---------SELECT----------' bucket
+        from dual
+      union all
+      select distinct (to_char(t.bucket_id)||'~'||t.lang_id),
+                      ('BUCKET' || '-' || t.buck_lang)bucket
+        from TBL_CRC_BUCKSIZE t order by bucket;
+  elsif p_flag = 'confirm_editbucket' then
+    if p_parval2 = 1 then
+    
+      delete from TBL_CRC_BUCKET_emp_dtl t where t.bucket_id = v_spltr(1);
+     /* delete from TBL_CRC_EMP_BUCKETDTL t where t.bucket_id = v_spltr(1);*/
+      v_spltr := splitstr(p_parval1, '~');
+      /*   v_dsplr:=splitstr(v_spltr(3),'-');*/
+    
+      v_dtl1 := splitstr(p_parval1, '$');
+      for i in 1 .. v_dtl1.count loop
+        if v_dtl1(i) is not null then
+          v_dtl2 := splitstr(v_dtl1(i), '~');
+          v_dtl3 := splitstr(v_dtl2(4), '-');
+          insert into TBL_CRC_BUCKET_emp_dtl
+            (bucket_id,
+             col_language,
+           
+             emp_code,
+             inserted_date,
+             lang_id,INSERTED_EMP)
+          values
+            (v_dtl2(1), v_dtl2(3),  v_dtl3(1), sysdate, v_dtl2(2),p_pageval);
+        /*  insert into TBL_CRC_EMP_BUCKETDTL
+            (BUCKET_ID, EMP_CODE)
+          values
+            (v_dtl2(1), v_dtl3(1));*/
+          commit;
+        end if;
+      end loop;
+      open QRY_RESULT for
+        select 'Employees updated..' from dual;
+    else
+      --    update tbl_crc_bucket_mst t set t.max_count=v_spltr(2) where t.bucket_id=v_spltr(1);
+      update TBL_CRC_BUCKSIZE t
+         set t.buck_size = v_spltr(3)
+       where t.bucket_id = v_spltr(1);
+      commit;
+      open QRY_RESULT for
+        select 'Bucket size updated..' from dual;
+    end if;
+  
+  elsif p_flag = 'display_bucket' then
+    open QRY_RESULT for
+      select t.bucket_id || '~' || t.col_language || '~' || t.emp_code || '-' ||
+             e.emp_name || '~' || t.lang_id|| '~' || '$'
+        from  TBL_CRC_BUCKET_emp_dtl t,tbl_crc_emp_dtls e
+       where e.emp_code = t.emp_code
+       and t.bucket_id = v_str(1);
+  elsif p_flag = 'Excel_upload' then
+    SELECT seq_crc_excel_lead.NEXTVAL into SEQ_LEAD_ID FROM DUAL;
+    v_str := splitstr(p_parval1, '~');
+    v_branchid:=v_str(5);
+    if  v_branchid is null then
+      v_branchid:=0;
+      else
+          v_branchid:=v_str(5);
+          end if;
+          v_mailid:=v_str(7);
+          if v_mailid is null then 
+            v_mailid:=null;
+            else
+              v_mailid:=v_str(7);
+              end if;
+    /* select l.col_lang_id into v_lang
+      from state_master s, branch_master b, TBL_API_LOCAL_LANGUAGE l
+     where l.col_state_name = s.state_name
+       and b.state_id = s.state_id
+       and b.branch_id =  v_str(5);*/
+      /* select t.bucket_id into  v_bucketid from tbl_crc_bucksize t where t.lang_id=v_lang;*/
+  select count(*) into v_cnt from tbl_crc_mst t where t.mobile_number=v_str(8) ;
+  if v_cnt>0 then
+    select trunc(t.inserted_on) into v_date from tbl_crc_mst t where t.mobile_number=v_str(8)
+    and t.inserted_on=(select max(t.inserted_on) from tbl_crc_mst t where t.mobile_number=v_str(8));
+   
+  if  trunc(sysdate)-v_date>=90 then
+  --if v_cnt=0 then
+   
+
+    insert into tbl_crc_mst
+    
+      (lead_id,
+       lead_source_cat,
+       SM_LEADSOURCE_ID,
+       lead_date,
+       next_followup_date,
+       inserted_on,
+       inserted_by,
+       branch_id,
+       cust_name,
+       cust_mail,
+       mobile_number,
+       call_status,
+       product_id,
+       product_name,
+       inserted_type,
+       followup_status,
+       bucket_id,
+       call_response_id,
+       intrested_status,
+       initial_mobile_no,
+       LEAD_STAUS,FIRM_ID)
+    values
+      (SEQ_LEAD_ID,
+       v_str(1),
+       v_str(2),
+       to_date(v_str(3), 'DD/MM/YYYY'),
+       sysdate,
+       sysdate,
+       v_str(4),
+       v_branchid,
+       v_str(6),
+       v_mailid,
+       v_str(8),
+       0,
+       p_pageval,
+       p_parval2,
+       222,
+       0,
+        v_str(9),
+       0,
+       0,
+       v_str(8),
+       1,1);
+   
+ 
+       
+    end if;
+else
+    insert into tbl_crc_mst
+    
+      (lead_id,
+       lead_source_cat,
+       SM_LEADSOURCE_ID,
+       lead_date,
+       next_followup_date,
+       inserted_on,
+       inserted_by,
+       branch_id,
+       cust_name,
+       cust_mail,
+       mobile_number,
+       call_status,
+       product_id,
+       product_name,
+       inserted_type,
+       followup_status,
+       bucket_id,
+       call_response_id,
+       intrested_status,
+       initial_mobile_no,
+       LEAD_STAUS,FIRM_ID)
+    values
+      (SEQ_LEAD_ID,
+       v_str(1),
+       v_str(2),
+       to_date(v_str(3), 'DD/MM/YYYY'),
+       sysdate,
+       sysdate,
+       v_str(4),
+      v_branchid,
+       v_str(6),
+       v_mailid,
+       v_str(8),
+       0,
+       p_pageval,
+       p_parval2,
+       222,
+       0,
+       v_str(9),
+       0,
+       0,
+       v_str(8),
+       1,1); 
+       end if;
+    commit;
+    open QRY_RESULT for
+      select 'Uploaded Successfully' from dual;
+  elsif p_flag = 'drop_leadsource' then
+  
+    open QRY_RESULT for
+    
+      select t.id, t.lead_source from TBL_LMS_LEADSOURCE t;
+  elsif p_flag = 'drop_employees' then
+  
+    open QRY_RESULT for
+      select '-1' emp_code, '---------SELECT----------'
+        from dual
+      union all
+      select to_char(t.emp_code) emp_code,
+             to_char(t.emp_code) || '-' || t.emp_name
+        from TBL_CRC_EMP_DTLS t where t.status_id=1 and t.post_id=1
+       order by emp_code asc;
+  elsif p_flag = 'get_source' then
+    open QRY_RESULT for
+      select t.leadsource_id
+        from tbl_leadsource_category t
+       where t.leadsource_name = v_str(1);
+  elsif p_flag = 'get_product' then
+    open QRY_RESULT for
+      select t.id
+        from TBL_LMS_LEADCAMPAIGN t
+       where t.lead_campaign = v_str(1);
+  elsif p_flag = 'get_social_media' then
+    open QRY_RESULT for
+      select t.id from TBL_LMS_LEADSOURCE t where t.lead_source = v_str(1);
+/*  elsif p_flag = 'check_repeatation' then
+    select count(*)
+      into v_cnt
+      from tbl_crc_bucket_mst t
+     where t.bucket_id = v_spltr(2)
+       and t.emp_code = v_spltr(1);
+    if v_cnt = 0 then
+      open QRY_RESULT for
+        select 111 from dual;
+    else
+      open QRY_RESULT for
+        select 333 from dual;
+    end if;*/
+ 
+
+ elsif p_flag = 'GETMENUID' then
+    OPEN QRY_RESULT FOR
+      select T.MENU_ID, T.REPORT_NAME
+        from TBL_crc_REPORTDTL t
+       WHERE T.REP_ID = p_parval2
+         and t.status_id = 1
+       order by 2;
+  elsif p_flag = 'GETREPDATA' then
+  
+    open QRY_RESULT for
+      select t.rep_type, t.sub_id, t.report_name
+        from TBL_crc_REPORTDTL t
+       where t.menu_id = p_parval1
+         AND T.REP_ID = p_parval2;
+  elsif p_flag = 'crcreport' then
+    v_str := splitstr(p_parval1, '~');
+    select T.REPORT_QUERY
+      into v_res
+      from TBL_crc_REPORTDTL t
+     where t.menu_id = v_str(1);
+  
+    if INSTR(UPPER(v_res), 'DATEM1') > 0 and
+       INSTR(UPPER(v_res), 'DATEM2') > 0 then
+      v_res := replace(v_res, 'dateM1', v_str(2));
+      v_res := replace(v_res, 'dateM2', v_str(3));
+    elsif INSTR(UPPER(v_res), 'DATEM1') > 0 then
+      v_res := replace(v_res, 'dateM1', v_str(2));
+    elsif INSTR(UPPER(v_res), 'DATEM2') > 0 then
+      v_res := replace(v_res, 'dateM2', v_str(3));
+    end if;
+    if INSTR(UPPER(v_res), 'UNXID') > 0 then
+      v_res := replace(v_res, 'unxid', v_str(4));
+    end if;
+  
+    if INSTR(UPPER(v_res), 'EMPXID') > 0 then
+      v_res := replace(v_res, 'empxid', v_str(6));
+    end if;
+  
+    OPEN QRY_RESULT FOR v_res;
+  elsif p_flag = 'get_bucketsize' then
+    OPEN QRY_RESULT FOR
+      select t.buck_size
+        from TBL_CRC_BUCKSIZE t
+       where t.bucket_id = v_spltr(1);
+  elsif p_flag = 'delete_bucket' then
+    delete TBL_CRC_BUCKET_emp_dtl t where t.bucket_id = v_splt(1);
+    /*delete tbl_crc_emp_bucketdtl t where t.bucket_id = p_parval2;*/
+    --  delete from TBL_CRC_BUCKSIZE t where t.bucket_id=p_parval2;
+    --  update tbl_crc_bucket_mst t  set t.emp_code = null where t.bucket_id=p_parval2;
+    --   update tbl_crc_emp_bucketdtl t set t.emp_code=null where t.bucket_id=p_parval2;
+    commit;
+    open QRY_RESULT for
+      select 'Employees updated..' from dual;
+      
+   -------------------------------------------dilson  
+   ---------------CRF 113889 Veena-------------------- 
+   elsif p_flag = 'get_emp_dropdwn' then
+     
+     OPEN QRY_RESULT FOR
+   select c.emp_code,c.emp_name,b.col_language,b.bucket_id
+  from tbl_crc_emp_dtls c, tbl_crc_bucket_emp_dtl b
+ where c.post_id = 1
+   and c.status_id = 1
+   and c.emp_code = b.emp_code
+   order by b.col_language;
+   ----------------115954----
+     elsif p_flag = 'get_state_dropdwn' then
+     
+     OPEN QRY_RESULT FOR
+     select t.state_id,t.state_name 
+   from mana0809.state_master t order by  t.state_id ;
+   
+   elsif p_flag = 'get_area_dropdwn' then
+     
+     OPEN QRY_RESULT FOR
+  select distinct h.area_id, h.area_name, count(distinct t.phone_no)
+  from mana0809.br_personal_visit_new t,mana0809.branch_detail_new h
+ where h.branch_id = t.branch_id
+      and h.state_id = p_pageval
+      and t.crc_lead_sts is null
+      and to_date(t.enter_dt) between to_date(p_parval1) and to_date(p_parval2)
+   group by h.area_name,h.area_id
+   order by h.area_id;
+   
+   elsif p_flag = 'get_bucket_dropdwn' then
+     
+     OPEN QRY_RESULT FOR
+     select bucket_id,buck_lang from tbl_crc_bucksize order by bucket_id;
+  
+  
+   
+   
+    elsif p_flag = 'assign_camp_confirm' then 
+      
+    select count(*) into cnt_v from tbl_crc_emp_camp_assign t where t.emp_id=v_str(1);
+    
+    if(cnt_v>0) then
+    
+   update tbl_crc_emp_camp_assign t
+   set t.bucket_id =v_str(2),
+       t.camp_tdy_lead =v_str(3),
+       t.camp_tdy_followup =v_str(4),
+       t.camp_pending_lead =v_str(5),
+       t.camp_pending_followup =v_str(6),
+       t.camp_tdy_noncontact =v_str(7),
+       t.camp_non_contact =v_str(8),
+       t.camp_crm =v_str(9),
+       t.camp_callback =v_str(10),
+       t.camp_lost_cust =v_str(11),
+       t.camp_redemption =v_str(12),
+       t.camp_redem_callbck =v_str(13),
+       t.camp_othercamp =v_str(14),
+       t.camp_missedcall =v_str(15),
+       t.camp_redemtn_noncontact =v_str(16),
+       t.ogl_callback =v_str(17),
+       t.date_assign =sysdate
+ where t.emp_id = v_str(1);
+ commit;
+ 
+ else
+      
+    insert into tbl_crc_emp_camp_assign
+    ( emp_id,
+      bucket_id,
+      camp_tdy_lead,
+      camp_tdy_followup,
+      camp_pending_lead,
+      camp_pending_followup,
+      camp_tdy_noncontact,
+      camp_non_contact,
+      camp_crm,
+      camp_callback,
+      camp_lost_cust,
+      camp_redemption,
+      camp_redem_callbck,
+      camp_othercamp,
+      camp_missedcall,
+      camp_redemtn_noncontact,
+      ogl_callback,
+      date_assign
+    )
+    values
+    (v_str(1),
+     v_str(2),
+     v_str(3),
+     v_str(4),
+     v_str(5),
+     v_str(6),
+     v_str(7),
+     v_str(8),
+     v_str(9),
+     v_str(10),
+     v_str(11),
+     v_str(12),
+     v_str(13),
+     v_str(14),
+     v_str(15),
+     v_str(16),
+     v_str(17),
+     sysdate
+    );
+    commit;
+    end if;
+     open QRY_RESULT for
+      select 111 from dual;
+      
+       elsif p_flag = 'get_emp_dtls' then 
+         
+      open QRY_RESULT for   
+      select t.camp_tdy_lead,
+       t.camp_tdy_followup,
+       t.camp_pending_lead,
+       t.camp_pending_followup,
+       t.camp_tdy_noncontact,
+       t.camp_non_contact,
+       t.camp_crm,
+       t.camp_callback,
+       t.camp_lost_cust,
+       t.camp_redemption,
+       t.camp_redem_callbck,
+       t.camp_othercamp,
+       t.camp_missedcall,
+       t.camp_redemtn_noncontact,
+       t.ogl_callback,
+       t.date_assign 
+ from tbl_crc_emp_camp_assign t 
+ where t.emp_id = v_str(1);
+ 
+  elsif p_flag = 'get_area_dtls' then 
+         
+      open QRY_RESULT for   
+      select t.area_id,
+      t.area_name
+ from branch_detail_new t;
+ 
+ 
+  elsif p_flag = 'assign_to_all' then 
+         
+ update TBL_CRC_EMP_CAMP_ASSIGN t
+   set t.camp_tdy_lead           = 1,
+       t.camp_tdy_followup       = 1,
+       t.camp_pending_lead       = 1,
+       t.camp_pending_followup   = 1,
+       t.camp_tdy_noncontact     = 1,
+       t.camp_non_contact        = 1,
+       t.camp_crm                = 1,
+       t.camp_callback           = 1,
+       t.camp_lost_cust          = 1,
+       t.camp_redemption         = 1,
+       t.camp_redem_callbck      = 1,
+       t.camp_othercamp          = 1,
+       t.camp_missedcall         = 1,
+       t.camp_redemtn_noncontact = 1,
+       t.ogl_callback =1,
+       t.date_assign             = sysdate
+ where t.emp_id in (select c.emp_code from TBL_CRC_BUCKET_EMP_DTL c);
+  commit;
+     open QRY_RESULT for
+      select 222 from dual;
+
+   /* elsif p_flag = 'reset' then 
+      update TBL_CRC_EMP_CAMP_ASSIGN t
+   set t.camp_tdy_lead           = 0,
+       t.camp_tdy_followup       = 0,
+       t.camp_pending_lead       = 0,
+       t.camp_pending_followup   = 0,
+       t.camp_tdy_noncontact     = 0,
+       t.camp_non_contact        = 0,
+       t.camp_crm                = 0,
+       t.camp_callback           = 0,
+       t.camp_lost_cust          = 0,
+       t.camp_redemption         = 0,
+       t.camp_redem_callbck      = 0,
+       t.camp_othercamp          = 0,
+       t.camp_missedcall         = 0,
+       t.camp_redemtn_noncontact = 0,
+       t.date_assign             = sysdate
+ where t.emp_id in (select c.emp_code from TBL_CRC_BUCKET_EMP_DTL c);
+  commit;
+     open QRY_RESULT for
+      select 333 from dual;*/
+    ---------------CRF 113889 Veena End-------------------- 
+      
+      elsif p_flag = 'delete' then 
+   select count(x.mobile_number) into v_cnt2  from  mana0809.TBL_crc_mst x where trim(x.cust_name) is null;
+    if (v_cnt2 > 0) then
+  Declare cursor mob_num is  select x.mobile_number  from  mana0809.TBL_crc_mst x where trim(x.cust_name) is null ;
+begin
+  open mob_num;
+  Loop
+    fetch mob_num into delet_mob;
+    exit when mob_num%notfound;
+   
+       delete from mana0809.tbl_crc_mst x where trim(x.cust_name) is null;
+    delete  from mana0809.tbl_crc_followup_dtl y where y.mobile = delet_mob;
+    commit;
+    
+   
+   end loop; 
+   close mob_num;
+   end;  
+    open QRY_RESULT for  select '111' from dual;
+     else
+      
+       open QRY_RESULT for  select '222' from dual;
+        
+ end if;
+      
+    
+     
+  /* 
+*/
+
+      
+      
+  -------------------dilson    
+     /* elsif  p_flag = 'delete' then
+        select count(x.mobile_number) into v_cnt2 from mana0809.tbl_crc_mst x where trim(x.cust_name) is null;
+          if (v_cnt2 > 0) then
+            delete from mana0809.tbl_crc_mst x where trim(x.cust_name) is null;
+            
+*/
+      
+      
+  elsif p_flag = 'xchange_employee' then
+    select count(*) into v_cnt from TBL_CRC_BUCKET_emp_dtl t where t.emp_code=p_parval2;
+    if v_cnt<>0 then
+    update TBL_CRC_BUCKET_emp_dtl t
+       set t.emp_code = p_parval1
+     where t.emp_code = p_parval2;
+  /*  update tbl_crc_emp_bucketdtl t
+       set t.emp_code = p_parval1
+     where t.emp_code = p_parval2;*/
+    update tbl_crc_mst t
+       set t.emp_code = p_parval1
+     where t.emp_code = p_parval2;
+    commit;
+  
+    select p_parval1 into v_empde from dual;
+    select p_parval2 into v_exchange from dual;
+    open QRY_RESULT for
+      select v_empde || '-' || v_exchange from dual;
+      else
+         open QRY_RESULT for
+      select '333' from dual;
+        end if;
+      elsif p_flag = 'excel_bucketupload' then
+  
+    open QRY_RESULT for
+      select '-1', '---------SELECT----------' bucket
+        from dual
+      union all
+      select distinct to_char(t.bucket_id),
+                      ('BUCKET' || '-' || t.buck_lang)bucket
+        from TBL_CRC_BUCKSIZE t order by bucket;  
+        elsif p_flag = 'update_emextension_number' then
+          update tbl_crc_emp_dtls t set t.extension_no=p_pageval , t.did_no=p_pageval where t.emp_code=p_parval1;
+          commit;
+          open QRY_RESULT for
+          select p_pageval from dual;
+        
+        
+        elsif p_flag = 'switch2QA' THEN
+          open QRY_RESULT FOR
+          SELECT t.emp_code FROM tbl_qa_access t WHERE t.emp_code=p_pageval;
+              
+     elsif p_flag = 'GET_QA_MENUID' then
+    OPEN QRY_RESULT FOR
+      select T.MENU_ID, T.REPORT_NAME
+        from TBL_crc_REPORTDTL t
+       WHERE T.REP_ID = p_parval2
+         and t.status_id = 5
+       order by 2;
+          
+   elsif p_flag = 'assign_leads' then
+
+       proc_crc_releads(p_pageval,p_parval1,p_parval2,p_parval3,qry_result );
+       
+  end if;
+          
+ 
+end proc_crc_admin;

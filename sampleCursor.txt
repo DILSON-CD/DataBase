@@ -1,0 +1,132 @@
+CREATE OR REPLACE PROCEDURE fzm_compliance_menuaccess IS
+--DECLARE
+
+CURSOR cur_emp is SELECT t.fzm_empcode FROM tbl_fzm_master t;
+CURSOR cur_alert IS SELECT t.fzm_empcode FROM tbl_fzm_master t;
+
+r_lead cur_emp%rowtype;
+r_msg cur_alert%rowtype;
+
+
+
+ v_ErrDesc                        TBL_ITPROJECTS_ERROR_DTL.error_description%type;
+ v_ErrDtl                         TBL_ITPROJECTS_ERROR_DTL.error_details%type;
+ v_ErrID                          TBL_ITPROJECTS_ERROR_DTL.error_id%type;
+
+
+
+usercd_emp NUMBER;
+v_cnt NUMBER;
+c_cnt NUMBER;
+d_cnt NUMBER;
+e_cnt NUMBER;
+
+BEGIN
+
+
+
+ open cur_emp;
+       Loop
+       Fetch cur_emp into r_lead;
+       Exit when cur_emp%notfound;
+
+ SELECT t.user_cd INTO usercd_emp from PRC_USER_MASTER t where t.emp_cd=r_lead.fzm_empcode;
+ SELECT COUNT(t.user_cd) INTO v_cnt FROM PRC_USER_MODULE_RIGHT_MAST t WHERE t.module_cd=207 AND t.user_cd=usercd_emp;
+ IF v_cnt = 0 THEN 
+   
+    INSERT INTO PRC_USER_MODULE_RIGHT_MAST (user_cd,module_cd,status,Submodule_Cd) VALUES(usercd_emp,207,1,3);
+    COMMIT;
+    INSERT INTO PRC_USER_MODULE_RIGHT_MAST (user_cd,module_cd,status,Submodule_Cd) VALUES(usercd_emp,207,1,2);
+    COMMIT;
+   END IF;
+
+  End loop;
+  Close cur_emp;
+
+ 
+ open cur_alert;
+       Loop
+       Fetch cur_alert into r_msg;
+       Exit when cur_alert%notfound;
+       
+        select count(DISTINCT t.upd_slno ) INTO c_cnt
+       from mana0809.TBL_CERTIFICATE_UPDATION t, 
+        mana0809.TBL_CERTIFICATE_SUBMISSION d,
+         mana0809.department_mst dp,
+          mana0809.emp_master e, mana0809.TBL_CERTIFICATE_SUBMISSION c,mana0809.tbl_certi_sub_depts db,mana0809.tbl_mstr_tmp tm 
+        where t.sid = d.sid 
+        and e.EMP_CODE = t.emp_code 
+        and dp.dep_id = t.dep_id 
+        and c.sid = t.sid 
+       and tm.numb=db.draft_id
+       AND t.status=0
+        AND t.emp_code=r_msg.fzm_empcode
+      AND tm.numb IN (261,281,301,302,321,341,361,381,401,421,441,462)
+      AND to_date(t.assign_dt) > to_date('31-dec-2022');---monthly
+       IF c_cnt > 0 THEN
+         
+       SELECT COUNT(t.emp_code) INTO e_cnt FROM tbl_ma_common_alert t WHERE to_date(t.entr_dt)=to_date(SYSDATE) AND t.module_id=189 AND t.emp_code=r_msg.fzm_empcode;
+         IF e_cnt = 0 THEN
+           
+            insert into tbl_ma_common_alert
+  (emp_code, module_id, entr_dt, alert_message, status)
+  VALUES (r_msg.fzm_empcode,
+          189,
+          SYSDATE,
+           '<p>Kindly ensure the submission of the Monthly Compliance Certificate on or before 06th of this month, through the HRMS module under the tab Compliance</p>',
+           1);
+  
+  COMMIT;
+         
+           END IF;
+          
+         END IF;
+         
+           select count(DISTINCT t.upd_slno ) INTO c_cnt
+       from mana0809.TBL_CERTIFICATE_UPDATION t, 
+        mana0809.TBL_CERTIFICATE_SUBMISSION d,
+         mana0809.department_mst dp,
+          mana0809.emp_master e, mana0809.TBL_CERTIFICATE_SUBMISSION c,mana0809.tbl_certi_sub_depts db,mana0809.tbl_mstr_tmp tm 
+        where t.sid = d.sid 
+        and e.EMP_CODE = t.emp_code 
+        and dp.dep_id = t.dep_id 
+        and c.sid = t.sid 
+       and tm.numb=db.draft_id
+       AND t.status=0
+        AND t.emp_code=r_msg.fzm_empcode
+      AND tm.numb IN (461,382)
+        AND to_date(t.assign_dt) > to_date('31-dec-2022'); ---half 
+   IF d_cnt > 0 THEN
+     
+          SELECT COUNT(t.emp_code) INTO e_cnt FROM tbl_ma_common_alert t WHERE to_date(t.entr_dt)=to_date(SYSDATE) AND t.module_id=190 AND t.emp_code=r_msg.fzm_empcode;
+ IF e_cnt = 0 THEN
+      insert into tbl_ma_common_alert
+  (emp_code, module_id, entr_dt, alert_message, status)
+  VALUES (r_msg.fzm_empcode,
+          190,
+          SYSDATE,
+           '<p>Kindly ensure the submission of the Half Yearly Compliance Certificate on or before 10th of this month, through the HRMS module under the tab Compliance</p>',
+           1);
+     
+   END IF;
+   END IF;
+       
+       End loop;
+  Close cur_alert;
+
+
+
+
+ exception when others then
+
+    v_ErrID:=SEQ_Itproject_ERRORID.nextval;
+
+    v_ErrDesc   :=Sqlerrm;
+    v_ErrDtl    :=Sqlerrm || dbms_utility.format_error_backtrace ||
+           dbms_utility.format_error_stack ||dbms_utility.format_call_stack;
+    insert into TBL_ITPROJECTS_ERROR_DTL(error_id, proc_name, error_description, error_details, tra_dt)
+                                values(v_ErrID,'fzm_compliance_menuaccess',v_ErrDesc,v_ErrDtl,sysdate);
+    commit;
+
+
+ END fzm_compliance_menuaccess;

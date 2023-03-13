@@ -1,0 +1,4777 @@
+create or replace procedure PROC_COMMON_SELECT(p_flag     in varchar2,
+                                               p_pageVal1 in varchar2,
+                                               p_pageVal2 in varchar2,
+                                               p_ParVal   in varchar2 default ' ',
+                                               QRY_RESULT OUT RESULT_TYPE.QRY_RESULT) is
+  rmail     varchar2(1000);
+  emcod     number;
+  brd       number;
+  cnt       number;
+  chk       number;
+  p_val1    varchar2(100);
+  p_val2    varchar2(100);
+  v_post_id varchar(100);
+  v_cnt     number;
+  ct        number;
+  valdata   varchar(200);
+  valdata1  varchar(200);
+  indata varchar(200);
+  v_dtl1    array;
+  v_dtl2    array;
+  bankdata1 array;
+  sendmail  array;
+  p_parval3 varchar(500);
+  p_date    Date;
+  regionid  number;
+  am_count  number;
+  cnt3           number;
+  v_str1    array;
+  SlNo1     number;
+
+  qryrslt RESULT_TYPE.QRY_RESULT;
+begin
+  if p_flag = 'MENUACCESS' then
+    if p_pageVal1 = 'CHECKACCESS' then
+      select count(*)
+        into chk
+        from form_accessibility t
+       where t.emp_id = p_ParVal
+         and t.form_id = 162;
+      if chk > 0 then
+        open QRY_RESULT for
+          select 1 from dual;
+      else
+        open QRY_RESULT for
+          select count(*)
+            from form_accessibility
+           where form_id = 801
+             and emp_id = p_ParVal;
+      end if;
+    elsif p_pageVal1 = 'STOREIGST' then
+      open QRY_RESULT for
+        select count(*)
+          from form_accessibility
+         where form_id = 5542
+           and emp_id = p_pageVal2;
+    
+    elsif p_pageVal1 = 'TRUSTEEACCESS' then
+      open QRY_RESULT for
+        select count(*)
+          from form_accessibility t
+         where t.emp_id = p_ParVal
+           and t.form_id = 5116;
+    elsif p_pageVal1 = 'MORATORIUMACCESS' then
+      open QRY_RESULT for
+        select count(*)
+          from form_accessibility t
+         where t.emp_id = p_pageVal2
+           and t.form_id = 5241;
+    
+    elsif p_pageVal1 = 'CHECKLISTSCORECARDACCESS' then
+      open QRY_RESULT for
+        select count(*)
+          from form_accessibility t
+         where t.emp_id = p_pageVal2
+           and t.form_id = 5266;
+    
+    elsif p_pageVal1 = 'CUSTACCESS' then
+      /* select count(*) into cnt from form_accessibility t  where t.emp_id=p_ParVal and t.form_id=5120;
+              if cnt > 0 then
+                open QRY_RESULT for
+                select 1 from dual;
+      elsif cnt =0 then
+            open QRY_RESULT for
+            SELECT count(*) from employee_master t where t.department_id=13 and t.firm_id=1 and t.branch_id=0 and t.status_id=1 and t.emp_code=p_ParVal;
+            end if;*/
+      open QRY_RESULT for
+        select sum(ct)
+          from (select COUNT(*) ct
+                  from emp_master t
+                 where t.POST_ID in (10, 1, 199, 136, -36)
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from emp_master t
+                 where t.DEPARTMENT_ID = 13
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from form_accessibility f
+                 where f.form_id = 5120
+                   and f.emp_id = p_ParVal);
+    
+      /* elsif p_pageVal1='BIDACCESS' then
+              open QRY_RESULT for
+              select count(*)  from form_accessibility t  where t.emp_id=p_ParVal and t.form_id=5116;
+      elsif p_pageVal1='PANACCESS' then
+              open QRY_RESULT for
+              select count(*) from form_accessibility t where t.emp_id=p_ParVal and t.form_id=3247; */
+    elsif p_pageVal1 = 'NCDACCESS' then
+      open QRY_RESULT for
+        select count(*)
+          from emp_master t
+         where t.EMP_CODE = p_ParVal
+           and t.BRANCH_ID = p_pageVal2;
+    elsif p_pageVal1 = 'BRCOMPACCESS' then
+      open QRY_RESULT for
+        select sum(ct)
+          from (select COUNT(*) ct
+                  from emp_master t
+                 where t.POST_ID in (10, 1, 199, 136, -36)
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from emp_master t
+                 where t.DEPARTMENT_ID = 13
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from form_accessibility f
+                 where f.form_id = 5120
+                   and f.emp_id = p_ParVal);
+    ELSIF p_pageVal1 = 'HOSTELACCESS' THEN
+      OPEN QRY_RESULT FOR
+        select sum(ct)
+          from (select COUNT(*) ct
+                  from emp_master t
+                 where t.POST_ID in (197, 136, 131, 134, 141)
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from emp_master t
+                 where t.DEPARTMENT_ID = 279
+                   and t.STATUS_ID = 1
+                   and t.EMP_CODE = p_ParVal
+                union
+                select count(*) ct
+                  from form_accessibility f
+                 where f.form_id = 505
+                   and f.emp_id = p_ParVal);
+    
+    ELSIF p_pageVal1 = 'CUSTOMERCOMPLAINT' THEN
+      OPEN QRY_RESULT FOR
+      
+        select COUNT(*) ct
+          from FORM_ACCESSIBILITY T
+         where T.FORM_ID = 7006
+           and T.EMP_ID = p_ParVal;
+    
+    end if;
+    ----------------------Neft Verification ----
+  elsif p_flag = 'SYSGROWTH' then
+    PROC_CATEGORY_GROWTH(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+    /* elsif p_flag = 'NEFTVERIF' then
+    PROC_NEFT_VERIF_SELECT(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);*/
+  elsif p_flag = 'GATEREQUEST' then
+    PROC_GATE_SELECT(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  elsif p_flag = 'CUSTCOMPLAINT' then
+    proc_cust_complaint_select(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  elsif p_flag = 'HOSTEL' then
+    PROC_HOSTEL_ADDREMOVE_EMP(p_flag,
+                              p_pageVal1,
+                              p_pageVal2,
+                              p_ParVal,
+                              QRY_RESULT);
+  
+  elsif p_flag = 'DOORSTEP' then
+    PROC_DOOR_CALL_CENTER(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  elsif p_flag = 'MORITORIUMCALL' then
+    proc_moritorium_call_status(p_flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  elsif p_flag = 'CUSTSURVEY' then
+    proc_customersurvey_select(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  
+    ------athira----------------
+  elsif p_flag = 'NOPSTATUS' then
+  
+    proc_NOB_Sts_Updation(p_Flag,
+                          p_PageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+    -----------------------------------------------------------
+  
+    /* ------athira----------------
+      elsif p_flag = 'FNDTRNFR1' then
+                                      
+      proc_FUNDTRNFR(p_Flag,
+                            p_PageVal1  ,
+                            p_pageVal2  ,
+                            p_ParVal  ,
+                            QRY_RESULT );           
+    
+    */
+  
+    -----------------------------------------------------------
+  
+  elsif p_flag = 'HOSTELREPORT' then
+    if p_pageVal1 = 'GETREPORT' then
+      open QRY_RESULT for
+        select a.flat_no "FLATNO",
+               b.BRANCH "BRANCH",
+               substr(d.state_name, 1, 15) "STATE",
+               substr(b.AREA, 1, 12) "AREA",
+               substr(c.rent_category_name, 1, 10) "CATEGORY",
+               a.flat_name || '  -  ' || a.flat_no "FLAT",
+               ra.building_no "BUILDINGNO",
+               ra.building_name "NAME",
+               ra.building_address "ADDRESS"
+          from tbl_rent_building_mst a,
+               tbl_rent_mst          e,
+               view_branch           b,
+               tbl_rent_category     c,
+               state_master          d,
+               tbl_rent_agreement    ra
+         where a.agreement_from is not null
+           and a.branch_id = b.BRANCH_ID
+           and a.rent_category_id not in (1, 11, 12)
+           and a.rent_category_id = c.rent_category_id
+           and e.flat_no = a.flat_no
+           and ra.flat_no(+) = a.flat_no
+           and e.firm_id = a.firm_id
+           and e.rent_category_id = a.rent_category_id
+           and b.state_id = d.state_id
+           and a.status_id <> 3
+           and a.firm_id = 1
+         group by a.flat_no,
+                  b.BRANCH,
+                  d.state_name,
+                  b.AREA,
+                  c.rent_category_name,
+                  a.flat_name,
+                  a.flat_no,
+                  a.capacity,
+                  ra.building_no,
+                  ra.building_name,
+                  ra.building_address
+         order by d.state_name, b.AREA, c.rent_category_name;
+    
+    elsif p_pageVal1 = 'GETEMPDATA' then
+      select count(*)
+        into cnt
+        from tbl_rent_hostel a
+       where a.flat_no is not null
+         and a.emp_code = p_pageVal2;
+      if cnt = 0 then
+        open QRY_RESULT for
+          select 'This employee is not assigned in any Hostel' from dual;
+      else
+        open QRY_RESULT for
+          select a.flat_no "Flat No",
+                 b.emp_name "Employee Name",
+                 c.flat_name"Flat Name",
+                 max(a.check_in_date) "Check In Date",
+                 max(a.check_out_date) "Check Out Date"
+            from tbl_rent_hostel       a,
+                 employee_master       b,
+                 tbl_rent_building_mst c
+           where a.flat_no = c.flat_no
+             AND a.EMP_CODE = b.emp_code
+             and a.emp_code = p_pageVal2
+           group by a.flat_no, b.emp_name, c.flat_name;
+      end if;
+    end if;
+  elsif p_flag = 'BRANCHPHONE' then
+  
+    if p_pageVal1 = 'PHONEEDIT' then
+      open QRY_RESULT for
+      --select t.*,b.BRANCH_NAME,b1.BRANCH_NAME nbname from BRANCH_PHONE_DETAILS t,branch_dtl_new b,branch_dtl_new b1 where b.BRANCH_ID=t.branch_id and b1.BRANCH_ID=t.NST_BRID and t.branch_id=p_pageVal2 and t.status in (1,2,3);
+        select b.BRANCH_NAME,
+               b1.BRANCH_NAME nbname,
+               t.branch_id,
+               t.bsnl,
+               t.reliance,
+               t.others,
+               t.bhbm,
+               t.type,
+               t.updated_by,
+               t.ploicestation_name,
+               t.station_phone,
+               t.abh_phone,
+               t.ah_phone,
+               t.am_security_no,
+               t.updated_dt,
+               t.controlroom_no,
+               t.dist_police_station,
+               t.rh_audit,
+               t.rh_oper,
+               t.address_dtl,
+               t.open_roof,
+               t.railway_station,
+               t.dist_railway,
+               t.airport,
+               t.dist_airport,
+               t.arm_security_no,
+               t.nst_brid,
+               t.nst_brid_no,
+               t.dist_brid,
+               t.land_lord,
+               t.ll_name,
+               t.ll_no,
+               t.shop_name,
+               t.shop_status,
+               t.shop_ownrname,
+               t.shop_number,
+               t.bh_personal,
+               t.abh_personal,
+               t.ah_personal,
+               t.ams_personal,
+               t.arms_personal,
+               t.rhaud_personal,
+               t.rhoper_personal,
+               t.status,
+               t.fzm_no,
+               t.fzm_personal_no,
+               t.ad_bh_no,
+               t.ad_rmno,
+               t.ad_policno,
+               t.ad_blcno,
+               decode(t.p_cat1, 1, 'PERSONAL', 2, 'OFFICE', 3, 'LANDLINE') as Category1,
+               decode(t.p_cat2, 1, 'PERSONAL', 2, 'OFFICE', 3, 'LANDLINE') as Category2,
+               decode(t.p_cat3, 1, 'PERSONAL', 2, 'OFFICE', 3, 'LANDLINE') as Category3,
+               decode(t.p_cat4, 1, 'PERSONAL', 2, 'OFFICE', 3, 'LANDLINE') as Category4
+          from BRANCH_PHONE_DETAILS t, branch_dtl_new b, branch_dtl_new b1
+         where b.BRANCH_ID = t.branch_id
+           and b1.BRANCH_ID = t.NST_BRID
+           and t.branch_id = p_pageVal2
+           and t.status in (1, 2, 3);
+    
+    elsif p_pageVal1 = 'PHONEREPORT' then
+      select count(*)
+        into v_cnt
+        from employee_master t
+       where t.emp_code = p_pageVal2
+         and t.department_id = '537';
+      if v_cnt > 0 then
+        open QRY_RESULT for
+        --select b.branch_name "Branch Name",  b.BRANCH_ID  "Branch ID",b.area_name "Area Name",b.reg_name "Region Name",w.fzm " ZONE NAME",t.bsnl "BSNL NO",t.reliance "FWP NO",t.bsnl "BSNL NO",t.others "Other No",t.fzm_no "FZM No",t.fzm_personal_no "FZM Personal No",t.bhbm "BHBM NO",t.bh_personal "BHBM PERSONAL NO",t.ploicestation_name "Police Station",t.station_phone "Station No",t.abh_phone "ABH NO",t.abh_personal "ABH Personal NO",t.ah_phone "AH NO",t.ah_personal "AH Personal NO",t.am_security_no "AM Security NO",t.ams_personal "AM Security Personal NO",t.controlroom_no "Control Room NO",t.dist_police_station " Distance From Station (km)",t.rh_audit "RH Audit No",t.rhaud_personal "RH Audit Personal NO",t.rh_oper "RH Oper No",t.rhoper_personal "RH oper Personal No",t.address_dtl "Address",t.open_roof "Open Roof",t.railway_station "RailWay Station",t.dist_railway "Distance From Railway (km)",t.airport "Airport",t.dist_airport "Distance From Airport (km)",t.arm_security_no "ARM Security No",t.arms_personal "ARM Security Personal No",t.nst_brid "Nearest Branch Name",t.nst_brid_no "Nearest Branch No",t.dist_brid "Distance From Branch(km)",t.land_lord "Land Lord",t.ll_name "Land Lord Name",t.ll_no "Land Lord No",t.shop_name "Shop Name",t.shop_ownrname "Shop Owner Name ",t.shop_number "Shop No ",e.emp_name "Updated BY",to_char (t.updated_dt) "Updated Date" from branch_phone_details_history t,TBL_FZM_MASTER  w,branch_dtl_new b,employee_master e where e.emp_code = t.updated_by and   b.reg_id=w.region_id and t.branch_id=b.BRANCH_ID and t.status=3;
+          select b.branch_name "Branch Name",
+                 b.BRANCH_ID "Branch ID",
+                 b.area_name "Area Name",
+                 b.reg_name "Region Name",
+                 w.fzm " ZONE NAME",
+                 t.bsnl "BSNL NO",
+                 t.reliance "FWP NO",
+                 t.bsnl "BSNL NO",
+                 t.others "Other No",
+                 t.fzm_no "FZM No",
+                 t.fzm_personal_no "FZM Personal No",
+                 t.bhbm "BHBM NO",
+                 t.bh_personal "BHBM PERSONAL NO",
+                 t.ploicestation_name "Police Station",
+                 t.station_phone "Station No",
+                 t.abh_phone "ABH NO",
+                 t.abh_personal "ABH Personal NO",
+                 t.ah_phone "AH NO",
+                 t.ah_personal "AH Personal NO",
+                 t.am_security_no "AM Security NO",
+                 t.ams_personal "AM Security Personal NO",
+                 t.controlroom_no "Control Room NO",
+                 t.dist_police_station " Distance From Station(km)",
+                 t.rh_audit "RH Audit No",
+                 t.rhaud_personal "RH Audit Personal NO",
+                 t.rh_oper "RH Oper No",
+                 t.rhoper_personal "RH oper Personal No",
+                 t.address_dtl "Address",
+                 t.open_roof "Open Roof",
+                 t.railway_station "RailWay Station",
+                 t.dist_railway "Distance From Railway(km)",
+                 t.airport "Airport",
+                 t.dist_airport "Distance From Airport (km)",
+                 t.arm_security_no "ARM Security No",
+                 t.arms_personal "ARM Security Personal No",
+                 t.nst_brid "Nearest Branch Name",
+                 t.nst_brid_no "Nearest Branch No",
+                 t.dist_brid "Distance From Branch(km)",
+                 t.land_lord "Land Lord",
+                 t.ll_name "Land Lord Name",
+                 t.ll_no "Land Lord No",
+                 t.shop_name "Shop Name",
+                 t.shop_ownrname "Shop Owner Name ",
+                 t.shop_number "Shop No ",
+                 e.emp_name "Updated BY",
+                 to_char(t.updated_dt) "Updated Date",
+                 nvl(t.ad_bh_no, '-') "Additional No BH",
+                 nvl(decode(t.p_cat1,
+                            1,
+                            'PERSONAL',
+                            2,
+                            'OFFICE',
+                            3,
+                            'LANDLINE'),
+                     'NIL') as Phone_Type1,
+                 nvl(t.ad_rmno, '-') "Additional No RM",
+                 nvl(decode(t.p_cat2,
+                            1,
+                            'PERSONAL',
+                            2,
+                            'OFFICE',
+                            3,
+                            'LANDLINE'),
+                     'NIL') as Phone_Type2,
+                 nvl(t.ad_policno, '-') "Additional No Police",
+                 nvl(decode(t.p_cat3,
+                            1,
+                            'PERSONAL',
+                            2,
+                            'OFFICE',
+                            3,
+                            'LANDLINE'),
+                     'NIL') as Phone_Type3,
+                 nvl(t.ad_blcno, '-') "Additional No LandLoard",
+                 nvl(decode(t.p_cat4,
+                            1,
+                            'PERSONAL',
+                            2,
+                            'OFFICE',
+                            3,
+                            'LANDLINE'),
+                     'NIL') as Phone_Type4
+            from branch_phone_details_history t,
+                 TBL_FZM_MASTER               w,
+                 branch_dtl_new               b,
+                 employee_master              e
+           where e.emp_code = t.updated_by
+             and b.reg_id = w.region_id
+             and t.branch_id = b.BRANCH_ID
+             and t.status = 3;
+      
+      else
+        open QRY_RESULT for
+          select '0' from dual;
+      end if;
+    end if;
+  elsif p_flag = 'AHBRANCHPHONE' then
+    PROC_AH_BRANCH_PHONE_UPDATION(p_pageVal1,
+                                  p_pageVal2,
+                                  p_ParVal,
+                                  QRY_RESULT);
+  elsif p_flag = 'AUTOSMS' then
+    PROC_AUTOSMS_GROWTH_INCENTIVE(p_flag,
+                                  p_pageVal1,
+                                  p_pageVal2,
+                                  p_ParVal,
+                                  QRY_RESULT);
+  
+  elsif p_flag = 'getdrop' then
+    open QRY_RESULT for
+      select i.item_id || '!' || m.measurement || '!' || m.measure_unit || '!' ||
+             s.qty,
+             i.item_name
+        from store_item_master           i,
+             tbl_branch_stock_update_dtl s,
+             store_measurements          m
+       where s.branch_id = p_pageVal1
+         and s.item_id = i.item_id
+         and i.measure_id = m.measure_id
+       order by item_name;
+  elsif p_flag = 'ahcheck' then
+    select t.post_id
+      into v_post_id
+      from employee_master t
+     where t.emp_code = p_pageVal1;
+    if v_post_id = '136' or v_post_id = '197' then
+      open QRY_RESULT for
+        select '111' from dual;
+    else
+      open QRY_RESULT for
+        select '333' from dual;
+    end if;
+  elsif p_flag = 'fzmcheck' then
+    select t.post_id
+      into v_post_id
+      from employee_master t
+     where t.emp_code = p_pageVal1;
+    if v_post_id = '-36' then
+      open QRY_RESULT for
+        select '111' from dual;
+    else
+      open QRY_RESULT for
+        select '333' from dual;
+    end if;
+  elsif p_flag = 'fzmgetdata' then
+  
+    open QRY_RESULT for
+      select i.item_id, b.branch_name, i.item_name, s.qty, b.branch_id
+        from temp_tbl_branch_stock_update s,
+             branch_master                b,
+             store_item_master            i
+       where s.branch_id in
+             (select a.branch_id
+                from branch_detail_new a
+               where a.reg_id in
+                     (select t.region_id
+                        from tbl_fzm_master t
+                       where t.fzm_empcode = p_pageVal1))
+         and b.branch_id = s.branch_id
+         and i.item_id = s.item_id
+         and s.status = 1;
+  
+  elsif p_flag = 'getdata' then
+    open QRY_RESULT for
+      select i.item_id, b.branch_name, i.item_name, s.qty, b.branch_id
+        from temp_tbl_branch_stock_update s,
+             branch_master                b,
+             store_item_master            i
+       where s.branch_id in
+             (select a.branch_id
+                from branch_detail_new a
+               where a.area_id in
+                     (select t.area_id
+                        from branch_detail_new t, employee_master e
+                       where (e.post_id = 136 or e.post_id = 197)
+                         and e.emp_code = p_pageVal1
+                         and e.branch_id = t.branch_id))
+         and b.branch_id = s.branch_id
+         and i.item_id = s.item_id
+         and s.status = 0;
+  
+  elsif p_flag = 'advBranch' then
+  
+    select count(*)
+      into v_cnt
+      from TBL_ADV_IMG t
+     where t.langid = p_ParVal
+       and t.advimage is not null;
+  
+    if v_cnt = 1 then
+      open QRY_RESULT for
+        select t.advimage from TBL_ADV_IMG t where t.langid = p_ParVal;
+    else
+      open QRY_RESULT for
+        select t.advimage from TBL_ADV_IMG t where t.langid = 'EN';
+    end if;
+  
+  elsif p_flag = 'itemgetdrop' then
+    open QRY_RESULT for
+      select -1, 'TransferId-----SupplyDt' as transfer
+        from dual
+      union all
+      select distinct t.transfer_id,
+                      t.transfer_id || '-----' || t.supply_dt
+        from dms.store_transfer_master t, store_items a
+       where t.location_id = 2
+         and t.out_location = p_pageVal1
+         and t.status_id <> 4
+         and a.transfer_id = t.transfer_id
+         and a.out_rcvd_date is null
+         and to_date(t.supply_dt) >= '1-jul-2017'
+       order by 1;
+  
+  elsif p_flag = 'storeitemget' then
+  
+    select m.rcpt_no || '@' || m.rcpt_dt || '@' || p.parcel_name || '@' ||
+           m.packets_send || '@' || m.consign_no
+      into valdata
+      from dms.store_transfer_master m, store_parcel_service_mst p
+     where m.parcel_id = p.parcel_id
+       and m.transfer_id = p_pageVal1;
+    select count(*)
+      into valdata1
+      from STORE_ITEMS t
+     where transfer_id = p_pageVal1
+       and t.out_rcvd_date is null;
+    open QRY_RESULT for
+      select valdata, valdata1 from dual;
+  elsif p_flag = 'getstoreitemdtl' then
+    open QRY_RESULT for
+      select distinct count(s.item_id) as itmcnt,
+                      i.item_name,
+                      s.sequence_id,
+                      s.item_id
+        from store_items               s,
+             store_item_master         i,
+             dms.store_transfer_master d
+       where s.item_id = i.item_id
+         and d.transfer_id = s.transfer_id
+         and d.consign_no = p_pageVal1
+         and d.transfer_id = p_pageVal2
+         and s.out_date is not null
+         and s.out_rcvd_date is null
+       group by s.item_id, i.item_name, s.sequence_id
+       order by item_name;
+  
+  elsif p_flag = 'schemeforreport' then
+    open QRY_RESULT for
+      select distinct t.scheme_id, t.scheme_name
+        from tbl_nloan_scheme_dtl t
+       order by 2;
+  
+    /*elsif p_flag='showcollection' then
+              open QRY_RESULT for
+    select 'Customer ID',  'Customer Name',  'Loan ID',  'Branch ID',  'Branch Name',  'Collection Date',  'Collection Amount',  'Collection Mode'  from dual union all   select to_char(t.CustomerID),  to_char(t.CustomerName), to_char(t.LoanID)||'''',  to_char(t.BranchID),  to_char(t.BranchName),  to_char(t.CollectionDate),  to_char(t.CollectionAmount),  to_char(t.CollectionMode)  from VIEW_NLOAN_COLLECTION_RPT t  where t.scheme_id = p_ParVal  and to_date(t.tra_dt) between to_date(p_pageVal1) and  to_date(p_pageVal2);*/
+  
+  elsif p_flag = 'penddtl' then
+    open QRY_RESULT for
+      select distinct b.branch_id,
+                      b.branch_name,
+                      b.state_name,
+                      b.reg_name,
+                      t.supply_dt,
+                      t.transfer_id,
+                      t.CONSIGN_NO,
+                      sum(d.total),
+                      sum(d.igst_amount),
+                      sum(d.total) + sum(d.igst_amount)
+      
+        from dms.store_transfer_master     t,
+             mana0809.branch_detail_new    b,
+             mana0809.TBL_GST_ITEMWISE_DTL d,
+             mana0809.branch_master        f
+       where b.branch_id = t.out_location
+         and b.branch_id = f.branch_id
+         and f.branch_id = t.out_location
+         and b.branch_id <> 0
+         and t.location_id = 2
+         and t.status_id <> 4
+         and t.received_dt is null
+         and t.supply_dt > '01-feb-2020'
+         and to_date(sysdate) - to_date(t.supply_dt) >= 60
+         and t.transfer_id not in
+             (select t.transferid from mana0809.tbl_emp_gstdeduct_dtl t)
+         and d.invoice_no = t.invoice_no
+       group by b.branch_id,
+                b.branch_name,
+                b.state_name,
+                b.reg_name,
+                t.supply_dt,
+                t.transfer_id,
+                t.CONSIGN_NO
+       order by 1;
+ /* elsif p_flag = 'PROPOSALREPORT' then
+    PROC_MARKETING_PROPOSAL_REPORT(p_Flag,
+                                   p_pageVal1,
+                                   p_pageVal2,
+                                   p_ParVal,
+                                   QRY_RESULT);*/
+  end if;
+  if p_flag = 'TDSREQ' or p_flag = 'TDSAPPROV' or p_flag = 'TDSREPORT' then
+    proc_tds_auto(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  if p_flag = 'AH_MARK_VERIFICATION' then
+    proc_ah_marketing_verification(p_flag,
+                                   p_pageVal1,
+                                   p_pageVal2,
+                                   p_ParVal,
+                                   QRY_RESULT);
+  end if;
+  /*if p_flag='EMIACCESS' or p_flag='LOAN' or p_flag='GETLOAN' or p_flag='LOANCONFIRM'or p_flag='LOANCHECK'or p_flag='LOANBALANCE'or p_flag='NORMALCONFIRM'then
+          proc_branch_Loan_collection(p_flag,p_pageVal1,QRY_RESULT);
+  end if;*/
+  /* if p_flag='getrequestedloan' or p_flag='getextemi' or p_flag='getextten' or p_flag='confirm_morotorium' or p_flag='confirmLoan' then
+         proc_nloan_morotorium_request(p_flag,p_pageVal1,p_pageVal2,QRY_RESULT);
+        end if;
+  */
+  if p_flag = 'ADDPROPARAMETER' or p_flag = 'getmainpara' or
+     p_flag = 'ADDSUBPARA' or p_flag = 'GETLEAD' or p_flag = 'submitpara' or
+     p_flag = 'submitbank' or p_flag = 'showaddedpara' then
+    PROC_ADD_PRO_PARAMETERS(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  END IF;
+
+  if p_flag = 'DOCUMENT' or p_flag = 'DOCUMENT1' or p_flag = 'DOCUMENTAPP' or
+     p_flag = 'DOCUMENTCHECK' or p_flag = 'ADDDOCUMENT' or
+     p_flag = 'SCHEME' or p_flag = 'LOANCHECK1' or p_flag = 'APPCHECK' or
+     p_flag = 'DOCUMENTSELECT' or p_flag = 'DOCVIEW' or p_flag = 'APPVIEW' or
+     p_flag = 'DOCVIEW1' then
+    proc_loan_document(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  
+  END IF;
+  if p_flag = 'ADDPRODUCTDATA' then
+    proc_loan_product_schema(p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+  /*   if p_flag='LOANREPORT' then
+  proc_loan_product_report(p_pageVal1,p_pageVal2,p_ParVal,QRY_RESULT);
+   end if;*/
+
+  if p_flag = 'showpopuptaxdatatat' or p_flag = 'showpopupinsurancetax' or
+     p_flag = 'showpopupservicedatatat' or
+     p_flag = 'showpopupservicedatakms' or
+     p_flag = 'showpopuppollutiondatatat' or
+     p_flag = 'showpopupfitnessdatatat' or
+     p_flag = 'showpopuppermitdatatat' or p_flag = 'showlicencemcg' or
+     p_flag = 'showlightlicence' or p_flag = 'showheavylicence' or
+     p_flag = 'showbadge' or p_flag = 'VEHICLENO' or
+     p_flag = 'VEHICLEDRIVERDETAIL' or p_flag = 'GETVMODEL' or
+     p_flag = 'INSURANCE' or p_flag = 'ALLSERVICES' or
+     p_flag = 'SERVICEITEM' or p_flag = 'ADDDOCUMENTVMS' or
+     p_flag = 'ADDCOMPANY' or p_flag = 'MISCELL' or p_flag = 'ADDITEM' or
+     p_flag = 'POLLUTIONREPORT' or p_flag = 'POLLUTIONREPORT1' or
+     p_flag = 'CONFIRMSERVICEDATA' then
+    PROC_VMS_SERVICE(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  
+  end if;
+  if p_flag = 'UPSTracker' then
+    PROC_UPS_TRACKER(p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'COURIERRECEIPT' then
+    proc_courier_receipt_select(p_flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  end if;
+
+  if p_flag = 'grc' then
+    proc_grc_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+  if p_flag = 'compliance_grc' then
+    proc_complaince_grc(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+  if p_flag = 'Risk_grc' then
+    proc_risk_grc_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+  if p_flag = 'ncd_upload' then
+    proc_NcdBulk_Upload(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;
+
+  if p_flag = 'ncd_his' then
+    proc_NcdBulk_Upload(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;
+
+  /* if p_flag = 'otp_transaction' then
+    proc_OtpTran_Upload(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;*/
+  /*  if p_flag = 'incentive_exl_upload' then
+    proc_incentive_Upload(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;*/
+
+  if p_flag = 'NCD_Report' then
+    PROC_NCD_REPORTS(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'stateselection' then
+    OPEN QRY_RESULT FOR
+      select distinct t.state_id, t.state_name from state_master t;
+  end if;
+
+  if p_flag = 'ITC_Ecxelupload' then
+    proc_ITC_Upload(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'acc_vis' then
+    proc_acc_main_ledg_vis(p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'br_merge' then
+    proc_br_merge(p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'JointCustodian' then
+    proc_JointCustodian_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'MPLS_SELECT' then
+    proc_mpls_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'taxNoticeSelect' then
+    proc_taxNotice_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  /* if p_flag = 'Debitadvice' then
+    proc_Debitadvice_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;*/
+
+  if p_flag = 'DebitadvicePackage' then
+    pkg_payments.PAYMENT_PROCEDURE(p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+  --Master Bank Updation---
+  if p_flag = 'MASTERBANKREQ' or p_flag = 'MATERBANKAPP' then
+    proc_accounts_masterbank(p_flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  
+  end if;
+  if p_flag = 'operations_twoway' then
+    proc_operations_two_way(p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'BENEFACCADD' or p_flag = 'NEFT' or p_flag = 'BENEFACCAPP' or
+     p_flag = 'PAYMENTREQ' or p_flag = 'PAYMENTAPP' then
+    proc_benefacc_add(p_Flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  if p_flag = 'IMPS_REINITIATE' then
+    proc_imps_reinitiate_entry(p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+  if p_flag = 'SALARY_DEDUCTION' then
+  
+    proc_salarydeduction_report(p_Flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  end if;
+
+  if p_flag = 'esec_lapse' then
+    proc_esecurity_comp(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'EXCESS_GOLD' then
+    proc_excess_gold_select(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'GPS' then
+    proc_gps_details(p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'Demat' then
+  
+    PROC_Demat_details(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  
+  end if;
+  if p_flag = 'Rejectbranchdemat' then
+    OPEN QRY_RESULT FOR
+      select distinct g.branch_id, b.BRANCH_NAME
+        from tbl_demat_application g, branch_dtl_new b
+       where g.branch_id = b.BRANCH_ID
+         and g.status_id = 2;
+  end if;
+
+  if p_flag = 'Rejectcustdetails' then
+    OPEN QRY_RESULT FOR
+      select g.req_id,
+             g.investr_name,
+             g.kyc_type,
+             g.nomine_name,
+             g.investr_contact_no,
+             g.investr_mailid
+        from tbl_demat_application g
+       where g.branch_id = p_pageVal1
+         and g.status_id = 2;
+  
+  end if;
+
+  if p_flag = 'fstate' then
+    OPEN QRY_RESULT FOR
+      select i.gst_state_id, i.state_name from state_master i;
+  end if;
+
+  if p_flag = 'GET_STATUS_PR' then
+    Proc_gst_Status_updateS(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+
+  if p_flag = 'TAX_REPO_1' then
+    Proc_Tax_Not_rep(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'INVOSUM' then
+    if p_pageVal1 = 'GETCHQBANK' then
+      v_dtl1 := splitstr(p_pageVal2, '^');
+      OPEN QRY_RESULT FOR
+        select t.account_no, t.account_name || '--' || t.account_no
+          from SUBSIDARY_MASTER t
+         where t.parent_acc = 32100
+           and t.branch_id = v_dtl1(2)
+           and t.firm_id = v_dtl1(1)
+         order by 2;
+    
+    end if;
+    commit;
+  end if;
+
+  if p_flag = 'vendor1' then
+    OPEN QRY_RESULT FOR
+      select t.vendor_id, t.vendor_name
+        from TBL_VENDOR_MASTER t
+       where t.related_party = 1;
+  
+  end if;
+  if p_flag = 'vendor' then
+    OPEN QRY_RESULT FOR
+      select t.id, t.name from TBL_OTHER_VERTI_BRANCH t;
+  
+  end if;
+
+  if p_flag = 'UpdateInvoice' then
+    PROC_RP_invoice_rent(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  
+  end if;
+
+  if p_flag = 'SelectDuedate' then
+    select ADD_MONTHS(sysdate, 1) into p_date from dual;
+    OPEN QRY_RESULT FOR
+      select v.rp_id, to_char(v.due_date)
+        from tbl_rp_inst_dtl v
+       where sysdate <= p_date
+         and v.vendor_id = p_pageVal1
+         and v.status <> 1;
+  
+  end if;
+
+  if p_flag = 'selectDetailes' then
+  
+    OPEN QRY_RESULT FOR
+      select Round(y.amount) || '^' || y.from_date || '^' || y.to_date || '^' ||
+             y.inst_no || '^' || y.rent_id
+        from tbl_rp_inst_dtl y
+       where y.due_date = p_pageVal2
+         and y.vendor_id = p_pageVal1;
+  
+  end if;
+
+  if p_flag = 'showdetailsapprove' then
+    OPEN QRY_RESULT FOR
+      select distinct t.rent_id,
+                      t.firm_id,
+                      t.branch_id,
+                      t.amount,
+                      t.from_date,
+                      t.to_date,
+                      t.entered_by,
+                      t.entered_date,
+                      t.no_months,
+                      p.vendor_id,
+                      p.vendor_name
+        from tbl_rp_rent_mst t, TBL_vendor_master p
+       where t.status_id = 1
+         and p.vendor_id = t.vendor_id;
+  end if;
+
+  if p_flag = 'Stateid' then
+    OPEN QRY_RESULT FOR
+      select i.gst_state_id, i.state_name from state_master i;
+  end if;
+
+  if p_flag = 'RentRenewal' then
+    OPEN QRY_RESULT FOR
+      select distinct t.rent_id,
+                      t.rent_id || '~' || t.firm_id || '~' || t.branch_id || '~' ||
+                      t.amount || '~' || t.from_date || '~' || t.to_date || '~' ||
+                      t.entered_by || '~' || t.entered_date || '~' ||
+                      t.no_months || '~' || p.vendor_id || '~' ||
+                      p.vendor_name || '~' || B.NAME || '~' || B.ID
+        from tbl_rp_rent_mst        t,
+             TBL_vendor_master      p,
+             TBL_OTHER_VERTI_BRANCH B
+       where t.status_id = 1
+         and b.id = t.buil_id
+         AND (to_date(t.to_date, 'dd-mm-yy') - to_date(sysdate, 'dd-mm-yy')) <= 30
+         and p.vendor_id = t.vendor_id
+         and p.related_party = 1;
+  end if;
+  
+-----------Rashin 115374-------------
+             
+    if p_flag = 'DPL_report' then
+    v_dtl1 := splitstr(p_pageVal1, '^');
+    OPEN QRY_RESULT FOR
+    
+      select e.customer_id,
+             p.emp_code,
+             p.emp_name,
+             p.join_dt,
+             g.resign_dt,
+             g.relieve_dt,
+             g.cancel_dt,
+             h.cls_dt
+        from mana0809.tbl_emp_aadhar_pan a,
+             tbl_dpl_xl_data             e,
+             MANA0809.CUSTOMER_DETAIL    t
+        LEFT JOIN mana0809.TBL_NLOAN_LOAN_MST h
+          on t.cust_id = h.cust_id, mana0809.employee_master p
+        LEFT JOIN mana0809.m_resign_appl g
+          on g.emp_code = p.emp_code
+       where a.pan_no = e.pan_id
+         and p.emp_code = a.emp_code
+         and to_date(e.upd_date) >= v_dtl1(1)
+         and to_date(e.upd_date) <= v_dtl1(2)
+         and e.customer_id = t.cust_id;
+  
+  end if;
+
+  if p_flag = 'DPLaccess' then
+    open QRY_RESULT for
+      select t.*
+        from form_accessibility t
+       where t.form_id = 7599
+         and t.emp_id = p_pageVal1;
+  end if;
+             
+------------------------End---------------------------------------
+
+  if p_flag = 'RelatedParty' then
+    bankdata1 := splitstr(p_pageVal1, '?');
+  
+    select count(*)
+      into cnt
+      from tbl_rp_rent_mst t, tbl_po_invoice_mst i
+     where t.VENDOR_ID = bankdata1(2)
+       and to_char(t.RENT_ID) = i.po_id;
+    if cnt > 0 then
+    
+      OPEN QRY_RESULT FOR
+        select to_date(i.invoice_date) "INVOICE DATE",
+               i.invoice_no "INVOICENO",
+               i.amount"AMOUNT",
+               i.cgst,
+               i.sgst,
+               i.total_amt,
+               m.vendor_name,
+               y.name,
+               DECODE(r.status, 0, 'Paid') status
+          from tbl_rp_rent_mst        t,
+               tbl_po_invoice_mst     i,
+               tbl_vendor_master      m,
+               TBL_OTHER_VERTI_BRANCH y,
+               tbl_rp_inst_dtl        r
+         where to_char(t.RENT_ID) = i.po_id
+           and m.vendor_id = t.vendor_id
+           and t.buil_id = y.id
+           and r.rent_id = i.po_id;
+    
+    else
+    
+      open QRY_RESULT for
+        select 'There is no data' from dual;
+    end if;
+  end if;
+
+  if p_flag = 'dematfill' then
+    OPEN QRY_RESULT FOR
+      select g.req_id,
+             g.investr_name,
+             g.kyc_type,
+             g.nomine_name,
+             g.investr_contact_no,
+             g.investr_mailid
+        from tbl_demat_application g
+       where g.req_id = p_pageVal1;
+  
+  end if;
+
+  if p_flag = 'Cbatchapproval' then
+  
+    OPEN QRY_RESULT FOR
+      select d.batch_id,
+             d.dispatch_dt,
+             d.courier_agency,
+             d.courier_number,
+             d.empcode,
+             d.emp_name
+        from tbl_demat_courier_mst d
+       where d.batch_id = p_pageVal1;
+  
+  end if;
+
+  if p_flag = 'AUDIT_DASHBOARD' then
+    proc_audit_dashboard(p_Flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+  if p_flag = 'CREDIT_NBFC' then
+    proc_credit_assess_nbfc(p_Flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+  if p_flag = 'vigilance' then
+    proc_vigilance_escalation(p_flag,
+                              p_pageVal1,
+                              p_pageVal2,
+                              p_ParVal,
+                              QRY_RESULT);
+  end if;
+  if p_flag = 'SeizedGold' then
+    proc_SeizedGold(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  /*if p_flag = 'IRRPROPERTY' then
+    proc_irr_property_select(p_Flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  end if;*/
+
+  if p_flag = 'IRRPROPERTY1' then
+    proc_property_rha_verification(p_Flag,
+                                   p_pageVal1,
+                                   p_pageVal2,
+                                   p_ParVal,
+                                   QRY_RESULT);
+  end if;
+
+  if p_flag = 'THIRD_PARTY_SELECT' then
+    proc_third_party_complaint_select(p_Flag,
+                                      p_pageVal1,
+                                      p_pageVal2,
+                                      p_ParVal,
+                                      QRY_RESULT);
+  end if;
+
+  if p_flag = 'CASE_FILE_SELECT' then
+    proc_case_file_movement_select(p_Flag,
+                                   p_pageVal1,
+                                   p_pageVal2,
+                                   p_ParVal,
+                                   QRY_RESULT);
+  end if;
+
+  if p_flag = 'PRINCIPALPAID_SELECT' then
+    proc_principalpaid_select(p_Flag,
+                              p_pageVal1,
+                              p_pageVal2,
+                              p_ParVal,
+                              QRY_RESULT);
+  end if;
+
+  if p_flag = 'AOHRS_WORKING_SELECT' then
+    PROC_AOHRSW_SELECT(p_Flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'OLDRECORDS_STORAGE_SELECT' then
+    PROC_ORS_UPDATION_SELECT(p_Flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  end if;
+
+  if p_flag = 'CUSTBLOCK_EX_SELECT' then
+    PROC_CUSTBLOCK_EX_SELECT(p_Flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  end if;
+
+  if p_flag = 'RM_CUSTODY_GOLD_UPDATION' then
+    PROC_RMCGU_SELECT(p_Flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'EXCESSCASH_HOLDBRANCH' then
+    proc_excesscash_holdbranch(p_Flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+
+  if p_flag = 'POLICY_ENTRY' then
+    proc_policy_renewals_select(p_Flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  end if;
+
+  if p_flag = 'TDS_MODULE' then
+    proc_tds_update_cnfm(p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'TDS_MODULETEMP' then
+    proc_tds_temp_update_cnfm(p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'pl_Ecxelupload' then
+    proc_pl_Upload(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  if p_flag = 'lapliability' then
+    PROC_LAP_LIABILITY(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'NOTICE_STOCK_UPDN' then
+  
+    PROC_NOTICE_STOCK_UPDN(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+ 
+
+  if p_flag = 'BH_RM_EXPLANATION' then
+  
+    proc_bhrm_explanation(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  end if;
+  if p_flag = 'Press' then
+  
+    proc_press_update(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  
+  end if;
+
+  if p_flag = 'E_Movement' then
+  
+    proc_ho_move_new(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  
+  end if;
+
+  /* if p_flag = 'Agreement' then
+  
+    proc_agreement_dtl(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  
+  end if;
+  */
+  if p_flag = 'MyClient' then
+  
+    proc_my_client_app(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  
+  end if;
+  --------------------------------------------------------
+  if p_flag = 'Report_view' then
+  
+    proc_audit_test(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  
+  end if;
+  -----------------------------------------------------
+
+  if p_flag = 'Branch_Insurance' then
+  
+    proc_Insurance_GetBranch(p_flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  
+  end if;
+
+  if p_flag = 'REPORTDEMOMAIN' then
+    proc_reportdemo(p_Flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'Penalty_view' then
+    proc_penalty_police_report(p_Flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+
+  /* if p_flag = 'REPORTDEMO' then
+      proc_reportdemosql(p_Flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+    end if;
+  */
+  if p_flag = 'REPORTSECONDNEW' then
+    proc_report_second(p_Flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  /*if p_flag = 'GL_CUSTODYMODEL' then
+    proc_gold_custody_trial(p_Flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;*/
+
+  if p_flag = 'STOLEN_GL_RPT' then
+    proc_Stolen_Gl_Rpt(p_Flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  /*if p_flag = 'FILEUPLOAD' then
+    proc_File_Upload(p_Flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;*/
+
+  /*if p_flag = 'SECONDREPORTNEW' then
+      proc_new_report(p_Flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+    end if;
+  */
+  if p_flag = 'SafeGuard_confirmation' then
+  
+    proc_SafeGuardDetails(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  end if;
+--------------------------------------------
+  
+------------------------------------------------------
+
+  if p_Flag = 'Penalty_Reverse' then
+  
+    Proc_Staff_Penalty(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'GET_AGENCY_NAME' then
+  
+    proc_Get_AgencyName(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  
+  end if;
+  if p_flag = 'Invoice_Select' then
+  
+    proc_invoice_pro_select(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  
+  end if;
+  if p_flag = 'PROC_WebApp_SMS' then
+  
+    PROC_WebApp_SMS(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  if p_flag = 'ARM_security_inspec' then
+    proc_am_security_inspec(p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  
+  end if;
+
+  if p_flag = 'HOAPPS_rootcause' then
+  
+    proc_hoapps_rootcause(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  end if;
+  if p_flag = 'Safeguard_Approval' then
+    proc_safeguard_approval(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  
+  end if;
+  if p_flag = 'PROFILEBRANCHING' then
+    PROC_BRANCH_REPORT(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+  if p_flag = 'TDSRECONCILIATION' then
+    PROC_TDS_RECON_SELECT(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+
+  if p_flag = 'VEHICLINSPCTION' then
+    PROC_VEHICLE_INSPECTION(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+
+  if p_flag = 'cust_Excelupload' then
+    proc_ploan_cust_lead(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+  if p_flag = 'OGL_REPORT' then
+    proc_ogl_download_data(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+  if p_flag = 'simverify' then
+    proc_gps_sim(p_pageVal1, p_pageVal2, p_parval, '', QRY_RESULT);
+  end if;
+  if p_flag = 'PARTY_TRANSACTION' then
+    proc_party_transaction_select(p_flag,
+                                  p_pageVal1,
+                                  p_pageVal2,
+                                  QRY_RESULT);
+  end if;
+
+  if p_flag = 'MARKETING_ACTIVITY' then
+  
+    PROC_MARKETING_ACTIVITY(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+
+  if p_flag = 'TaxNoticeRpt' then
+  
+    PROC_TAXNOTICE_REPORT(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+
+  if p_flag = 'VigilanceInspection' then
+    proc_vigilance_inspection(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_flag = 'recon_his' then
+    proc_recon_gstr_rp(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'GET_recon_GST_STATUS_REPORT' then
+    Proc_recon_gst_Status_report(p_flag,
+                                 p_pageVal1,
+                                 p_pageVal2,
+                                 p_ParVal,
+                                 QRY_RESULT);
+  end if;
+  if p_flag = 'MTSS' then
+    PROC_MTSS_WESTERN_UNION_UPLOAD(p_flag,
+                                   p_pageVal1,
+                                   p_pageVal2,
+                                   p_ParVal,
+                                   QRY_RESULT);
+  end if;
+  if p_flag = 'PROC_EMPLOAN_VERIFICATION' then
+  
+    PROC_EMPLOAN_VERIFICATION(p_flag,
+                              p_pageVal1,
+                              p_pageVal2,
+                              p_ParVal,
+                              QRY_RESULT);
+  end if;
+
+  if p_flag = 'PROPOSAL_STATUS' then
+  
+    PROC_PROPOSAL_STATUS(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+
+  if p_Flag = 'FileUpload' then
+    PROC_UploadFile(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_Flag = 'DOCUMENTREPORT' then
+    PROC_UploadFile(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  
+  end if;
+
+  /*if p_Flag = 'LoanNo' then
+      PROC_UploadFile(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+    
+    end if;
+  */
+  if p_flag = 'GET_New_branchRent1' then
+    Proc_NEW_branchrent1_new(p_flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  end if;
+
+  if p_flag = 'GET_Rentnew1_rep' then
+    proc_branch_rent_masnew(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+
+  if p_flag = 'mob_Excelupload' then
+    proc_moblie_number_revocation(p_flag,
+                                  p_pageVal1,
+                                  p_pageVal2,
+                                  p_ParVal,
+                                  QRY_RESULT);
+  end if;
+
+  if p_flag = 'packet_miss' then
+    Proc_packet_missing_select(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+  if p_flag = 'AUDIT_SW_DASHBOARD' then
+    PROC_AUDIT_SW_DASHBOARD(p_Flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+  if p_Flag = 'MATURITY_SMS_REPO' then
+    PROC_MATURITY_SMS_REPORT(p_flag,
+                             p_pageVal1,
+                             p_pageVal2,
+                             p_ParVal,
+                             QRY_RESULT);
+  end if;
+
+  if p_flag = 'AUDIT_DASHBOARDV2' then
+  
+    proc_audit_dashboardv2(p_Flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+  if p_flag = 'TeamWork' then
+    proc_esec_TeamWork(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+  if p_flag = 'Suit_Filed_Select' then
+  
+    proc_suit_filed_case(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  
+  end if;
+  if p_flag = 'GPS_Exit_Block_select' then
+  
+    proc_gps_exit_block_select(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  
+  end if;
+
+  if p_Flag = 'LMS_REPORT' then
+    proc_LMS_Report(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  if p_Flag = 'Database_Correction' then
+    proc_backend_datacorrection(p_flag, p_pageVal1, p_pageVal2, QRY_RESULT);
+  end if;
+
+  if p_Flag = 'Post_Office_Phone_Updation' then
+    proc_postoffice_phone_number(p_flag,
+                                 p_pageVal1,
+                                 p_pageVal2,
+                                 p_ParVal,
+                                 QRY_RESULT);
+  end if;
+
+  if p_Flag = 'Daily_PrFlow' then
+    Proc_Daily_Process_Flow(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+
+  if p_flag = 'Intelleve_Select' then
+    proc_Intelleve_App(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'GPS_Select' then
+    proc_gps_sim_select(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;
+  if p_flag = 'Alarm_Pswd_Select' then
+    proc_alarm_pswd(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'faitvalrepotnew' then
+    PROC_Fair_val_report(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+
+  -----crf-113417------------
+
+  if p_flag = 'Fundtransfer_HO' then
+    PROC_fund_ho(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  -----------------------------------
+
+  if p_flag = 'Pay_rep1_rm_1' then
+    PROC_pay_report_rimm(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+
+  if p_flag = 'Pay_rep1_rm_2' then
+    Proc_Reg_repo1(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  /* if p_flag = 'Axis_challan_repo1' then
+    PROC_Axis_challanrep(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;*/
+
+  /*if p_flag = 'blockreg_gst' then
+    Proc_blockreg_repo1(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;*/
+
+  if p_flag = 'RIMM_GridN' then
+    proc_rimm_gridn(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_Flag = 'Excess_Cash_Punch_Block' then
+    proc_excess_cash_punch_block(p_flag,
+                                 p_pageVal1,
+                                 p_pageVal2,
+                                 p_ParVal,
+                                 QRY_RESULT);
+  end if;
+
+  if p_flag = 'IRRASSET' then
+    proc_irr_property_reassign(p_Flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+
+  /*if p_flag='ITSM_REPORT' then
+    proc_itsm('ITSM' ,
+              'fulldumpreport',
+              p_pageVal2,
+              p_ParVal,
+              '',
+              QRY_RESULT);
+    
+  end if;*/
+
+  if p_flag = 'DOORSTEPCARLOG' then
+    PROC_DOORSTEP_CAR_LOG(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  end if;
+
+  if p_Flag = 'CaseGold' then
+    proc_casegold_select(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  end if;
+
+  if p_Flag = 'CCEMPDEBIT' then
+    proc_CC_EMP_DEBT(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_Flag = 'CVD_GST_Ecxelupload' then
+    proc_CVDGST_Upload(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_Flag = 'TOREVERSAL' then
+    proc_takeover_reversal(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+
+  /*if p_Flag='Auctioneer_Punch' then
+  proc_auctioneer_punch_select(p_flag,p_pageVal1,p_pageVal2,p_ParVal,QRY_RESULT);
+  end if;*/
+  if p_Flag = 'Excess_Recoverable_bill' then
+    Proc_Staff_Recoverable(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+
+  if p_Flag = 'Desktop_Expiry_Report' then
+    proc_Desktop_Norms_monthly(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+
+  -----------------------------------------------------------------------------------------------------------------------------
+  if p_Flag = 'Amconfirmation' then
+  
+    select bn.reg_id
+      into regionid
+      from employee_master em, branch_dtl_new bn
+     where em.branch_id = bn.BRANCH_ID
+       and em.status_id = 1
+       and em.emp_code = p_pageVal1;
+    open QRY_RESULT for
+      select t.branch_id, bn.BRANCH_NAME, to_char(t.tra_dt)
+        from TBL_AM_SEC_VERIFICATION t, branch_dtl_new bn
+       where t.status = 0
+         and bn.BRANCH_ID = t.branch_id
+         and bn.reg_id = regionid;
+  
+  end if;
+
+  if p_Flag = 'Am_sec_select' then
+    select bn.reg_id
+      into regionid
+      from employee_master em, branch_dtl_new bn
+     where em.branch_id = bn.BRANCH_ID
+       and em.status_id = 1
+       and em.emp_code = p_pageVal1;
+  
+    open QRY_RESULT for
+    
+      select t.branch_id,
+             bn.BRANCH_NAME,
+             
+             decode(t.sec_type, 1, 'Day/Night', 2, 'Gun Man') sec_type,
+             to_char(t.current_dt)
+        from mis.m_sec_attend t, branch_dtl_new bn
+       where trunc(t.current_dt) >= '21/oct/2021'
+         and bn.BRANCH_ID = t.branch_id
+         and bn.reg_id = regionid
+         and not exists
+       (select *
+                from tbl_am_sec_verification h
+               where h.branch_id = t.branch_id
+                 and to_date(h.tra_dt) = to_date(t.current_dt))
+      union all
+      
+      select a.branch_id, b.BRANCH_NAME, 'Employee', to_char(a.ent_date)
+        from HRM_STAFFSEC_DTL a, branch_dtl_new b
+       where trunc(a.ent_date) >= '21/oct/2021'
+         and b.BRANCH_ID = a.branch_id
+         and b.reg_id = regionid
+         and not exists
+       (select *
+                from tbl_am_sec_verification k
+               where k.branch_id = a.branch_id
+                 and to_date(k.tra_dt) = to_date(a.ent_date));
+  
+  end if;
+
+  if p_Flag = 'Ams_emp_dtlselect' then
+    open QRY_RESULT for
+    
+      select e.emp_code, e.emp_name, p.post_name
+        from employee_master e, post_mst p
+       where p.post_id = e.post_id
+         and e.emp_code = p_pageVal1;
+  end if;
+
+  if p_Flag = 'Ams_count_emp' then
+    open QRY_RESULT for
+      select count(*)
+        into am_count
+        from tbl_punch_block p, employee_master e
+       where p.status = 1
+         and p.module_id = 27
+         and p.emp_code = p_pageVal1
+         and to_date(p.block_dt) = to_date(sysdate)
+         and e.emp_code = p.emp_code
+         and e.post_id in (236, 237);
+  end if;
+  if p_Flag = 'Am_approval' then
+    open QRY_RESULT for
+      select t.empcode,
+             e.emp_name,
+             to_char(t.tra_date),
+             t.branch_id,
+             b.BRANCH_NAME,
+             t.guard_type,
+             t.shift,
+             t.remarks
+        from tbl_exception_guards t, employee_master e, branch_dtl_new b
+       where t.status = 2
+         and e.emp_code = t.empcode
+         and to_date(t.tra_date) = to_date(sysdate)
+         and b.BRANCH_ID = t.branch_id;
+  end if;
+
+  if p_Flag = 'Ams_form_access' then
+    open QRY_RESULT for
+      select count(*)
+        from form_accessibility t
+       where t.form_id = 6119
+         and t.emp_id = p_pageVal1;
+  end if;
+  if p_Flag = 'Ams_rpt_data' then
+    proc_ams_verify_rpt(p_flag,
+                        p_pageVal1,
+                        p_pageVal2,
+                        p_ParVal,
+                        QRY_RESULT);
+  end if;
+
+  if p_Flag = 'flrmnr_select' then
+    proc_esec_flrmnr_select(p_flag,
+                            p_pageVal1,
+                            p_pageVal2,
+                            p_ParVal,
+                            QRY_RESULT);
+  end if;
+  --------------------------------------------------------------------------------------      
+  if p_Flag = 'TAKESTATUS' then
+    proc_takeover_status_change(p_flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  end if;
+
+  if p_Flag = 'Eligible' then
+    ELIGIBLE_CUSTOMER_UPDATION(p_flag,
+                               p_pageVal1,
+                               p_pageVal2,
+                               p_ParVal,
+                               QRY_RESULT);
+  end if;
+
+  if p_flag = 'RentEnhancment' then
+    proc_rent_enhancement(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+
+  if p_flag = 'RentEnhancmentApprove' then
+    proc_rent_renew(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+
+  if p_flag = 'FundId' then
+    proc_charge_register(p_flag,
+                         p_pageVal1,
+                         p_pageVal2,
+                         p_ParVal,
+                         QRY_RESULT);
+  
+  end if;
+
+  /*  if p_flag = 'Billnotrecieved' then
+    proc_bill_notrecieved(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;*/
+
+  /* if p_flag = 'test_reg' then
+    proc_test_reg(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;*/
+
+  /*if p_flag = 'view_reg1' then
+    PROC_View_reg(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;*/
+
+  /*if p_flag = 'test_registration112' then
+    proc_RegistrationForm(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;*/
+  /* if p_flag = 'saghpv' then
+    PROC_View_reg(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;*/
+  if p_flag = 'goldloanreversal' then
+    proc_goldloan_reversal(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+  /*if p_Flag = 'testEligible' then
+  
+    eligible_customer_updation1(p_flag,
+                                p_pageVal1,
+                                p_pageVal2,
+                                p_ParVal,
+                                QRY_RESULT);
+  end if;*/
+  ---358308 SABRAN CRF 103837
+  if p_flag = 'AUDITRELEASE' then
+    PROC_AUDIT_RELEASE(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  END IF;
+  ---358308 SABRAN CRF 103837
+  if p_flag = 'LEGAL' then
+    proc_legal_select(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  END IF;
+  if p_flag = 'UPLOADSTATUS' then
+    proc_uploadfilerpt(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  END IF;
+
+  if p_Flag = 'Popup_editor' then
+    proc_popup_select(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT);
+  end if;
+  ----------------------------
+  if p_Flag = 'esec_flow_select' then
+    proc_esec_flow_select(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+  if p_Flag = 'Viewdetails' then
+    PROC_EREGISTRY_SELECT(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+  ---lapse assign - FM
+  if p_flag = 'esec_lapse_assign' then
+  
+    proc_esec_lapse_assign(p_flag,
+                           p_pageVal1,
+                           p_pageVal2,
+                           p_ParVal,
+                           QRY_RESULT);
+  end if;
+
+  if p_flag = 'FILLSTATE' then
+    OPEN QRY_RESULT FOR
+      select t.state_id, t.state_name from STATE_MASTER t order by 2;
+  
+  end if;
+  if p_Flag = 'esec_complaint_exception' then
+    proc_esec_complaint_exception_select(p_flag,
+                                         p_pageVal1,
+                                         p_pageVal2,
+                                         p_ParVal,
+                                         QRY_RESULT);
+  end if;
+  if p_Flag = 'StartAssetAlert' then
+    PROC_COMMON_ALERT_SERVICE(p_flag,
+                              p_pageVal1,
+                              p_pageVal2,
+                              p_ParVal,
+                              QRY_RESULT);
+  end if;
+  if p_flag = 'onetime_updation' then
+  
+    proc_onetime_updation(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  
+  end if;
+
+  if p_flag = 'csmcallupdation' then
+    proc_customerdetailsupdation_csm(p_flag,
+                                     p_pageVal1,
+                                     p_pageVal2,
+                                     p_ParVal,
+                                     QRY_RESULT);
+  end if;
+
+  if p_flag = 'fundtrnsfr' then
+    proc_fundtrnsfrupload(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+    if p_flag = 'cseExcelUplod' then
+    proc_cse_excelupload(p_flag,
+                          p_pageVal1,
+                          p_pageVal2,
+                          p_ParVal,
+                          QRY_RESULT);
+  end if;
+  ----------CRF 112401--------->>                                                 
+  if p_flag = '133' then
+    proc_authorised_signatory_mail_alert(p_flag,
+                                         p_pageVal1,
+                                         p_pageVal2,
+                                         p_ParVal,
+                                         QRY_RESULT);
+  end if;
+  -----------------------------------------------------------------
+  if p_flag = 'send_mail' then
+  
+    sendmail := splitstr(p_pageVal1, '~');
+    OPEN QRY_RESULT FOR
+      select r.email
+        from MANA0809.TBL_AH_RM_FZM_MAILIDS r
+       WHERE r.post_id = 199
+         AND r.region_id IN
+             (select b.reg_id
+                from mana0809.branch_dtl_new b
+               where b.BRANCH_ID > 0
+                 and b.BRANCH_ID = sendmail(1));
+    -- v_spliter_a:= splitstr(p_pageVal1, '~');
+  
+    /* sendmail := splitstr(p_pageVal1, '~');*/
+    insert into tbl_lapsemail
+      (EMP_CODE, send_dt, branch_id, mail_id)
+      select r.emp_code, sysdate, r.branch_id, r.email
+        from MANA0809.TBL_AH_RM_FZM_MAILIDS r
+       WHERE r.post_id = 199
+         AND r.region_id IN
+             (select b.reg_id
+                from mana0809.branch_dtl_new b
+               where b.BRANCH_ID > 0
+                 and b.BRANCH_ID = sendmail(1));
+  
+    commit;
+  end if;
+  ------------------------------------------------------------------
+
+  if p_flag = 'proc_form60' then
+    proc_form60_report(p_flag,
+                       p_pageVal1,
+                       p_pageVal2,
+                       p_ParVal,
+                       QRY_RESULT);
+  end if;
+
+  if p_flag = 'IT_ASSETS' then
+    proc_RTSE_Assets_Reconciliation(p_flag,
+                                    p_pageVal1,
+                                    p_pageVal2,
+                                    p_ParVal,
+                                    QRY_RESULT);
+  end if;
+------------jithin c------------------------  
+  if p_flag='RD_SD_REPORT' then
+    
+               proc_rd_sd_rpt_115381(  p_flag,
+                                    p_pageVal1,
+                                    p_pageVal2,
+                                    p_ParVal,
+                                    QRY_RESULT);
+    
+  
+    
+  end if;
+-------------------------------------
+  if p_flag = '1' then
+    ---------------Aswin doc Audit
+  
+    v_dtl1 := splitstr(p_pageVal1, '^');
+  
+    open QRY_RESULT for
+ 
+ select distinct (fzm.fzm),
+                nvl(verified, 0) Branches_verfied,
+                nvl(document1, 0) No_of_doc_verified,
+                nvl(irregularityreported, 0) irregularity_reported,
+                nvl(RECTIFIED, 0) RECTIFIED,
+                nvl(RECTIFICATION_PENDING, 0) RECTIFICATION_PENDING,
+                nvl(spot_rectification, 0) Spot_rectification,
+                nvl(cannot_be_rectfied,0) Cannot_be_rectified
+                
+  from tbl_fzm_master fzm
+  left outer join (select b.fzm, count(distinct b.Branch) as verified
+                     from (select 
+f.fzm, t.branch_id Branch
+
+from mana0809.TBL_DOC_LIVE_INVENTRY t,
+            mana0809.audit_region_dtl      v,
+            mana0809.audit_region_mst      k,
+            mana0809.branch_dtl_new        p,
+            mana0809.TBL_DOC_AUDIT_ISSUES  m,
+            mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+   
+
+
+union all
+
+select 
+f.fzm,( t.branch_id) Branch
+
+from mana0809.TBL_DOC_settled_INVENTRY t,
+            mana0809.audit_region_dtl         v,
+            mana0809.audit_region_mst         k,
+            mana0809.branch_dtl_new           p,
+            mana0809.TBL_DOC_AUDIT_ISSUES     m,
+             mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+   
+      
+
+union all
+
+select
+f.fzm,( t.branch_id) Branch
+  from mana0809.TBL_DOC_active_customer t,
+       mana0809.audit_region_dtl        v,
+       mana0809.audit_region_mst        k,
+       mana0809.branch_dtl_new          p,
+       mana0809.TBL_DOC_AUDIT_ISSUES    m,
+        mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+      
+
+union all
+select
+f.fzm,( t.branch_id) Branch
+ from mana0809.TBL_DOC_maintain_register t,
+           mana0809. tbl_doc_audit_checklist   b,
+            mana0809.audit_region_dtl          v,
+            mana0809.audit_region_mst          k,
+            mana0809.branch_dtl_new            p,
+             mana0809.tbl_fzm_master        f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and b.class_id = 4
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+       and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+       
+          
+
+union all
+
+
+select 
+
+f.fzm,( t.branch_id) Branch
+from mana0809.TBL_DOC_display_certificate t,
+            mana0809.tbl_doc_audit_checklist     b,
+            mana0809.audit_region_dtl            v,
+            mana0809.audit_region_mst            k,
+            mana0809.branch_dtl_new              p,
+             mana0809.tbl_fzm_master        f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and b.class_id = 5
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+       and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+   
+union all
+
+select 
+f.fzm,( t.branch_id) Branch
+from mana0809.Tbl_Doc_Audit_Others    t,
+           mana0809.tbl_doc_audit_checklist b,
+            mana0809.audit_region_dtl        v,
+            mana0809.audit_region_mst        k,
+            mana0809.branch_dtl_new          p,
+             mana0809.tbl_fzm_master        f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and b.class_id = 6
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+       and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+       
+          
+
+union all
+
+select 
+f.fzm,( t.branch_id) Branch
+from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+            mana0809.audit_region_dtl             v,
+            mana0809.audit_region_mst             k,
+            mana0809.branch_dtl_new               p,
+            mana0809.TBL_DOC_AUDIT_ISSUES         m,
+             mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+   
+      
+
+union all
+
+select
+f.fzm,( t.branch_id) Branch
+  from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+       mana0809.audit_region_dtl              v,
+       mana0809.audit_region_mst              k,
+       mana0809.branch_dtl_new                p,
+       mana0809.TBL_DOC_AUDIT_ISSUES          m,
+        mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+   
+union all
+
+select 
+f.fzm,( t.branch_id) Branch
+from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+            mana0809.audit_region_dtl             v,
+            mana0809.audit_region_mst             k,
+            mana0809.branch_dtl_new               p,
+            mana0809.TBL_DOC_AUDIT_ISSUES         m,
+             mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+      
+
+union all
+
+select 
+f.fzm,( t.branch_id) Branch
+from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+            mana0809.audit_region_dtl                 v,
+            mana0809.audit_region_mst                 k,
+            mana0809.branch_dtl_new                   p,
+            mana0809.TBL_DOC_AUDIT_ISSUES             m,
+             mana0809.tbl_fzm_master        f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+    and v.region_id = f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+      
+
+union all
+
+select
+f.fzm,( t.branch_id) Branch
+  from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+       mana0809.audit_region_dtl                   v,
+       mana0809.audit_region_mst                   k,
+       mana0809.branch_dtl_new                     p,
+       mana0809.TBL_DOC_AUDIT_ISSUES               m,
+        mana0809.tbl_fzm_master                    f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id = f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.tra_dt between  v_dtl1(1) and v_dtl1(2)
+                                  ---('31-dec-2022')
+                           
+                           ) b
+                    group by b.fzm) o
+    on fzm.fzm = o.fzm
+
+  left outer join
+
+ (select b.fzm, count(to_char(b.doc_verified)) as document1
+    from (select (t.inv_no) doc_verified, f.fzm
+            from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                 mana0809.audit_region_dtl      v,
+                 mana0809.audit_region_mst      k,
+                 mana0809.branch_dtl_new        p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES  m,
+                 mana0809.tbl_fzm_master        f
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+             
+         
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select (t.inv_no) doc_verified, f.fzm
+            from mana0809.TBL_DOC_settled_INVENTRY t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                 mana0809.tbl_fzm_master           f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+               
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          select (t.cust_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_active_customer t,
+                 mana0809.audit_region_dtl        v,
+                 mana0809.audit_region_mst        k,
+                 mana0809.branch_dtl_new          p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                 mana0809.tbl_fzm_master          f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+       
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select (t.inv_no) doc_verified, f.fzm
+            from TBL_DOC_maintain_register t,
+                 tbl_doc_audit_checklist   b,
+                 audit_region_dtl          v,
+                 audit_region_mst          k,
+                 branch_dtl_new            p,
+                 mana0809.tbl_fzm_master   f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 4
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+              
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          select (t.inv_no) doc_verified, f.fzm
+            from TBL_DOC_display_certificate t,
+                 tbl_doc_audit_checklist     b,
+                 audit_region_dtl            v,
+                 audit_region_mst            k,
+                 branch_dtl_new              p,
+                 mana0809.tbl_fzm_master     f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 5
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+               
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select (t.inv_no) doc_verified, f.fzm
+            from Tbl_Doc_Audit_Others    t,
+                 tbl_doc_audit_checklist b,
+                 audit_region_dtl        v,
+                 audit_region_mst        k,
+                 branch_dtl_new          p,
+                 mana0809.tbl_fzm_master f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 6
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+           
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          
+          union all
+          
+          select (t.mtss_audit_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+           
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          
+          union all
+          
+          select to_char(t.forex_audit_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                 mana0809.audit_region_dtl              v,
+                 mana0809.audit_region_mst              k,
+                 mana0809.branch_dtl_new                p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                 mana0809.tbl_fzm_master                f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+            
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          
+          union all
+          
+          select to_char(t.pr_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+          
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select (t.paid_audit_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                 v,
+                 mana0809.audit_region_mst                 k,
+                 mana0809.branch_dtl_new                   p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                 mana0809.tbl_fzm_master                   f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+         
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          
+          union all
+          
+          select (t.unpaid_audit_id) doc_verified, f.fzm
+            from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                   v,
+                 mana0809.audit_region_mst                   k,
+                 mana0809.branch_dtl_new                     p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES               m,
+                 mana0809.tbl_fzm_master                     f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+               
+          
+          and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          ) b
+   group by b.fzm) z
+    on z.fzm = fzm.fzm
+  left outer join
+
+----------------------------------------------------------------------------
+ (select distinct b.fzm, count(b.cnt) as irregularityreported
+    from (select f.fzm, t.irregularity cnt
+          
+            from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                 mana0809.audit_region_dtl      v,
+                 mana0809.audit_region_mst      k,
+                 mana0809.branch_dtl_new        p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES  m,
+                 mana0809.tbl_fzm_master        f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and f.region_id = v.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irregularity cnt
+          
+            from mana0809.TBL_DOC_settled_INVENTRY t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                 mana0809.tbl_fzm_master           f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                --------------------------
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irregularity cnt
+          
+            from mana0809.TBL_DOC_active_customer t,
+                 mana0809.audit_region_dtl        v,
+                 mana0809.audit_region_mst        k,
+                 mana0809.branch_dtl_new          p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                 mana0809.tbl_fzm_master          f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irr_rmk cnt
+          
+            from mana0809.TBL_DOC_maintain_register t,
+                 mana0809.tbl_doc_audit_checklist   b,
+                 mana0809.                          audit_region_dtl v,
+                 mana0809.                          audit_region_mst k,
+                 mana0809.                          branch_dtl_new p,
+                 mana0809.tbl_fzm_master            f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 4
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                -----------------------------------------------------------------------------------------------------
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irr_rmk cnt
+          
+            from mana0809.TBL_DOC_display_certificate t,
+                 mana0809.tbl_doc_audit_checklist     b,
+                 mana0809.audit_region_dtl            v,
+                 mana0809.audit_region_mst            k,
+                 mana0809.branch_dtl_new              p,
+                 mana0809.tbl_fzm_master              f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 5
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irr_rmk cnt
+          
+            from mana0809.Tbl_Doc_Audit_Others    t,
+                 mana0809.tbl_doc_audit_checklist b,
+                 mana0809.audit_region_dtl        v,
+                 mana0809.audit_region_mst        k,
+                 mana0809.branch_dtl_new          p,
+                 mana0809.tbl_fzm_master          f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 6
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select
+          
+           f.fzm, t.issues cnt
+          
+            from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues cnt
+          
+            from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                 mana0809.audit_region_dtl              v,
+                 mana0809.audit_region_mst              k,
+                 mana0809.branch_dtl_new                p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                 mana0809.tbl_fzm_master                f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues cnt
+          
+            from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues cnt
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                 v,
+                 mana0809.audit_region_mst                 k,
+                 mana0809.branch_dtl_new                   p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                 mana0809.tbl_fzm_master                   f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues cnt
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                   v,
+                 mana0809.audit_region_mst                   k,
+                 mana0809.branch_dtl_new                     p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES               m,
+                 mana0809.tbl_fzm_master                     f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) ) b
+   group by b.fzm) r1
+    on r1.fzm = fzm.fzm
+
+  left outer join (select h.fzm, count(h.BRANCH_ID1) Rectified
+                     from (select f.fzm, t.irregularity BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                                  mana0809.audit_region_dtl      v,
+                                  mana0809.                      audit_region_mst k,
+                                  mana0809.                      branch_dtl_new p,
+                                  mana0809.                      TBL_DOC_AUDIT_ISSUES m,
+                                  mana0809.tbl_fzm_master        f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.irregularity not like '%Verified & Ok%' and
+                                  t.irregularity not like
+                                  '%No issue noticed%' and
+                                  t.irregularity not like '%Not Applicable%' and
+                                  t.irregularity not like '%Not applicable%')
+                              and t.spot_rect_st <> 1
+                              and t.irregularity like
+                                  '%' || m.issues(+) || '%'
+                              and t.issue_typ_id = m.type_id(+)
+                              and t.class_id = m.class_id(+)
+                                 
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.irregularity BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_settled_INVENTRY t,
+                                  mana0809.audit_region_dtl         v,
+                                  mana0809.audit_region_mst         k,
+                                  mana0809.branch_dtl_new           p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                                  mana0809.tbl_fzm_master           f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.irregularity not like '%Verified & Ok%' and
+                                  t.irregularity not like
+                                  '%No issue noticed%' and
+                                  t.irregularity not like '%Not Applicable%' and
+                                  t.irregularity not like '%Not applicable%')
+                              and t.spot_rect_st <> 1
+                              and t.irregularity like
+                                  '%' || m.issues(+) || '%'
+                              and t.issue_typ_id = m.type_id(+)
+                              and t.class_id = m.class_id(+)
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.irregularity BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_active_customer t,
+                                  mana0809.audit_region_dtl        v,
+                                  mana0809.audit_region_mst        k,
+                                  mana0809.branch_dtl_new          p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                                  mana0809.tbl_fzm_master          f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.irregularity not like '%Verified & Ok%' and
+                                  t.irregularity not like
+                                  '%No issue noticed%' and
+                                  t.irregularity not like '%Not Applicable%' and
+                                  t.irregularity not like '%Not applicable%')
+                              and t.spot_rect_st <> 1
+                              and t.irregularity like
+                                  '%' || m.issues(+) || '%'
+                              and t.issue_typ_id = m.type_id(+)
+                              and t.class_id = m.class_id(+)
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.irr_rmk BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_maintain_register t,
+                                  mana0809.tbl_doc_audit_checklist   b,
+                                  mana0809.audit_region_dtl          v,
+                                  mana0809.audit_region_mst          k,
+                                  mana0809.                          branch_dtl_new p,
+                                  mana0809.tbl_fzm_master            f
+                            where t.que_id = b.que_id
+                              and t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                                 
+                              and b.class_id = 4
+                              and f.region_id = v.region_id
+                              and (t.irr_rmk not like '%Verified & Ok%' and
+                                  t.irr_rmk not like '%No issue noticed%' and
+                                  t.irr_rmk not like '%Not applicable%' and
+                                  t.irr_rmk not like '%Not Applicable%')
+                                 
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.irr_rmk BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_display_certificate t,
+                                  mana0809.tbl_doc_audit_checklist     b,
+                                  mana0809.audit_region_dtl            v,
+                                  mana0809.audit_region_mst            k,
+                                  mana0809.branch_dtl_new              p,
+                                  mana0809.tbl_fzm_master              f
+                            where t.que_id = b.que_id
+                              and t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and b.class_id = 5
+                              and v.region_id = f.region_id
+                              and (t.irr_rmk not like '%Verified & Ok%' and
+                                  t.irr_rmk not like '%No issue noticed%' and
+                                  t.irr_rmk not like '%Not applicable%' and
+                                  t.irr_rmk not like '%Not Applicable%')
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.irr_rmk BRANCH_ID1
+                           
+                             from mana0809.Tbl_Doc_Audit_Others    t,
+                                  mana0809.tbl_doc_audit_checklist b,
+                                  mana0809.audit_region_dtl        v,
+                                  mana0809.audit_region_mst        k,
+                                  mana0809.branch_dtl_new          p,
+                                  mana0809.tbl_fzm_master          f
+                            where t.que_id = b.que_id
+                              and t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and b.class_id = 6
+                              and f.region_id = v.region_id
+                              and (t.irr_rmk not like '%Verified & Ok%' and
+                                  t.irr_rmk not like '%No issue noticed%' and
+                                  t.irr_rmk not like '%Not applicable%' and
+                                  t.irr_rmk not like '%Not Applicable%')
+                              and t.rect_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.issues BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                                  mana0809.audit_region_dtl             v,
+                                  mana0809.audit_region_mst             k,
+                                  mana0809.branch_dtl_new               p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                                  mana0809.tbl_fzm_master               f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.issues not like '%Verified & Ok%' and
+                                  t.issues not like '%No issue noticed%' and
+                                  t.issues not like '%Not Applicable%' and
+                                  t.issues not like '%Not applicable%')
+                              and t.irr_status_id <> 1
+                              and t.issues = m.issues(+)
+                              and t.iss_id = m.type_id(+)
+                              and t.irr_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.issues BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                                  mana0809.audit_region_dtl              v,
+                                  mana0809.audit_region_mst              k,
+                                  mana0809.branch_dtl_new                p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                                  mana0809.tbl_fzm_master                f
+                           
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and f.region_id = v.region_id
+                              and (t.issues not like '%Verified & Ok%' and
+                                  t.issues not like '%No issue noticed%' and
+                                  t.issues not like '%Not Applicable%' and
+                                  t.issues not like '%Not applicable%')
+                              and t.irr_status_id <> 1
+                              and t.issues = m.issues(+)
+                              and t.iss_id = m.type_id(+)
+                                 
+                              and t.irr_status is not null
+                                 
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.issues BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                                  mana0809.audit_region_dtl             v,
+                                  mana0809.audit_region_mst             k,
+                                  mana0809.                             branch_dtl_new p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                                  mana0809.tbl_fzm_master               f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.issues not like '%Verified & Ok%' and
+                                  t.issues not like '%No issue noticed%' and
+                                  t.issues not like '%Not Applicable%' and
+                                  t.issues not like '%Not applicable%')
+                              and t.irr_status_id <> 1
+                              and t.issues = m.issues(+)
+                              and t.iss_id = m.type_id(+)
+                              and t.irr_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           select f.fzm, t.issues BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                                  mana0809.audit_region_dtl                   v,
+                                  mana0809.audit_region_mst                   k,
+                                  mana0809.                                   branch_dtl_new p,
+                                  mana0809.                                   TBL_DOC_AUDIT_ISSUES m,
+                                  mana0809.tbl_fzm_master                     f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and f.region_id = v.region_id
+                              and (t.issues not like '%Verified & Ok%' and
+                                  t.issues not like '%No issue noticed%' and
+                                  t.issues not like '%Not Applicable%' and
+                                  t.issues not like '%Not applicable%')
+                              and t.irr_status_id <> 1
+                              and t.issues = m.issues(+)
+                              and t.iss_id = m.type_id(+)
+                              and t.irr_status is not null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  ---('31-dec-2022')
+                           union all
+                           
+                           select f.fzm, t.issues BRANCH_ID1
+                           
+                             from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                                  mana0809.audit_region_dtl                 v,
+                                  mana0809.audit_region_mst                 k,
+                                  mana0809.branch_dtl_new                   p,
+                                  mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                                  mana0809.tbl_fzm_master                   f
+                            where t.branch_id = v.branch_id
+                              and v.region_id = k.region_id
+                              and v.branch_id = p.BRANCH_ID
+                              and v.region_id = f.region_id
+                              and (t.issues not like '%Verified & Ok%' and
+                                  t.issues not like '%No issue noticed%' and
+                                  t.issues not like '%Not Applicable%' and
+                                  t.issues not like '%Not applicable%')
+                              and t.irr_status_id <> 1
+                              and t.issues = m.issues(+)
+                              and t.iss_id = m.type_id(+)
+                              and t.irr_status is not null
+                                 
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+                                  
+                           
+                           ) h
+                    group by h.fzm) x2
+    on x2.fzm = fzm.fzm
+
+  left outer join
+
+ (select b.fzm, count(b.rect_pending) as RECTIFICATION_PENDING
+    from (
+          
+          select f.fzm, t.irregularity rect_pending
+          
+            from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                  mana0809.audit_region_dtl      v,
+                  mana0809.audit_region_mst      k,
+                  mana0809.branch_dtl_new        p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES  m,
+                  mana0809.tbl_fzm_master        f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+             and t.rect_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irregularity rect_pending
+          
+            from mana0809.TBL_DOC_settled_INVENTRY t,
+                  mana0809.audit_region_dtl         v,
+                  mana0809.audit_region_mst         k,
+                  mana0809.branch_dtl_new           p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                  mana0809.tbl_fzm_master           f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+             and t.rect_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irregularity rect_pending
+          
+            from mana0809.TBL_DOC_active_customer t,
+                  mana0809.audit_region_dtl        v,
+                  mana0809.audit_region_mst        k,
+                  mana0809.branch_dtl_new          p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                  mana0809.tbl_fzm_master          f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+             and t.rect_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          select f.fzm, t.irr_rmk rect_pending
+          
+            from mana0809.TBL_DOC_maintain_register t,
+                  mana0809.                          tbl_doc_audit_checklist b,
+                  mana0809.audit_region_dtl          v,
+                  mana0809.                          audit_region_mst k,
+                  mana0809.branch_dtl_new            p,
+                  mana0809.tbl_fzm_master            f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 4
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+             and t.rect_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irr_rmk rect_pending
+          
+            from mana0809.TBL_DOC_display_certificate t,
+                  mana0809.tbl_doc_audit_checklist     b,
+                  mana0809.                            audit_region_dtl v,
+                  mana0809.                            audit_region_mst k,
+                  mana0809.branch_dtl_new              p,
+                  mana0809.tbl_fzm_master              f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 5
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+             and t.rect_status is null
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irr_rmk rect_pending
+          
+            from mana0809.Tbl_Doc_Audit_Others    t,
+                  mana0809.tbl_doc_audit_checklist b,
+                  mana0809.                        audit_region_dtl v,
+                  mana0809.audit_region_mst        k,
+                  mana0809.branch_dtl_new          p,
+                  mana0809.tbl_fzm_master          f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 6
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+             and t.rect_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues rect_pending
+          
+            from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                  mana0809.audit_region_dtl             v,
+                  mana0809.audit_region_mst             k,
+                  mana0809.branch_dtl_new               p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                  mana0809.tbl_fzm_master               f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+             and t.irr_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues rect_pending
+          
+            from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                  mana0809.audit_region_dtl              v,
+                  mana0809.audit_region_mst              k,
+                  mana0809.branch_dtl_new                p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                  mana0809.tbl_fzm_master                f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+             and t.irr_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          select f.fzm, t.issues rect_pending
+          
+            from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                  mana0809.audit_region_dtl             v,
+                  mana0809.audit_region_mst             k,
+                  mana0809.branch_dtl_new               p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                  mana0809.tbl_fzm_master               f
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+             and t.irr_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues rect_pending
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                  mana0809.audit_region_dtl                 v,
+                  mana0809.audit_region_mst                 k,
+                  mana0809.branch_dtl_new                   p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                  mana0809.tbl_fzm_master                   f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+             and t.irr_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.issues rect_pending
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                  mana0809.audit_region_dtl                   v,
+                  mana0809.audit_region_mst                   k,
+                  mana0809.branch_dtl_new                     p,
+                  mana0809.TBL_DOC_AUDIT_ISSUES               m,
+                  mana0809.tbl_fzm_master                     f
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+             and t.irr_status is null
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) ) b
+   group by b.fzm)
+
+x4
+    on x4.fzm = fzm.fzm
+
+  left outer join
+
+ (select b.fzm, count(b.cnt) as spot_rectification
+    from (select f.fzm, t.irregularity cnt
+            from mana0809.TBL_DOC_LIVE_INVENTRY    t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.tbl_fzm_master           f,
+                 mana0809.tbl_doc_audit_visit_plan r9
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.region_id = f.region_id
+             and v.branch_id = p.BRANCH_ID
+             and r9.branch_id = t.branch_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st = 1
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm, t.irregularity cnt
+            from mana0809.TBL_DOC_settled_INVENTRY t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.tbl_fzm_master           f,
+                 mana0809.tbl_doc_audit_visit_plan r
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and f.region_id = p.reg_id
+             and p.BRANCH_ID = t.branch_id
+             and t.branch_id = r.branch_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st = 1
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          select f.fzm, t.irregularity cnt
+            from mana0809.TBL_DOC_active_customer  t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.tbl_fzm_master           f,
+                 mana0809.tbl_doc_audit_visit_plan r9
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and f.region_id = k.region_id
+             and r9.branch_id = t.branch_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st = 1
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) ) b
+   group by b.fzm) x5
+
+    on x5.fzm = fzm.fzm
+    
+    left outer join
+    
+(select h.fzm,count(h.BRANCH_ID1) cannot_be_rectfied from  (select 
+     
+       f.fzm,
+       t.irregularity BRANCH_ID1
+     
+  from TBL_DOC_LIVE_INVENTRY t,
+       audit_region_dtl      v,
+       audit_region_mst      k,
+       branch_dtl_new        p,
+       TBL_DOC_AUDIT_ISSUES  m,
+       tbl_fzm_master f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id=f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+ 
+  and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+   
+
+union all
+select 
+      f.fzm,
+       t.irregularity BRANCH_ID1
+      
+  from TBL_DOC_settled_INVENTRY t,
+       audit_region_dtl         v,
+       audit_region_mst         k,
+      branch_dtl_new           p,
+       TBL_DOC_AUDIT_ISSUES     m,
+       tbl_fzm_master f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id=f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+   and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+union all
+select 
+       f.fzm,
+       t.irregularity BRANCH_ID1
+      
+  from TBL_DOC_active_customer t,
+       audit_region_dtl        v,
+       audit_region_mst        k,
+       branch_dtl_new          p,
+       TBL_DOC_AUDIT_ISSUES    m,
+       tbl_fzm_master f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id=f.region_id
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+   and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+   union all
+   select 
+       f.fzm,
+       t.irr_rmk BRANCH_ID1
+       
+  from TBL_DOC_maintain_register t,
+       tbl_doc_audit_checklist   b,
+       audit_region_dtl          v,
+       audit_region_mst          k,
+       branch_dtl_new            p,
+       tbl_fzm_master f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and b.class_id = 4
+   and f.region_id=v.region_id
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+       
+       and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+
+union all
+select 
+       f.fzm,
+       t.irr_rmk BRANCH_ID1
+      
+  from TBL_DOC_display_certificate t,
+       tbl_doc_audit_checklist     b,
+       audit_region_dtl            v,
+       audit_region_mst            k,
+       branch_dtl_new              p,
+       tbl_fzm_master f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and b.class_id = 5
+   and v.region_id=f.region_id
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+   and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+union all
+select
+       f.fzm,
+       t.irr_rmk BRANCH_ID1
+      
+  from Tbl_Doc_Audit_Others    t,
+       tbl_doc_audit_checklist b,
+       audit_region_dtl        v,
+       audit_region_mst        k,
+       branch_dtl_new          p,
+       tbl_fzm_master f
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and b.class_id = 6
+   and f.region_id=v.region_id
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+   and t.rect_status=2
+   and (t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+union all
+select 
+       f.fzm,t.issues BRANCH_ID1
+       
+  from TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+       audit_region_dtl             v,
+       audit_region_mst             k,
+       branch_dtl_new               p,
+       TBL_DOC_AUDIT_ISSUES         m,
+       tbl_fzm_master f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id=f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.irr_status_id=2
+   and trunc(t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+union all
+select 
+       f.fzm,
+       t.issues BRANCH_ID1
+      
+  from TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+       audit_region_dtl              v,
+       audit_region_mst              k,
+       branch_dtl_new                p,
+       TBL_DOC_AUDIT_ISSUES          m,
+       tbl_fzm_master               f
+       
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and f.region_id=v.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and trunc(t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+   and t.irr_status_id=2
+union all
+select 
+       f.fzm,
+       t.issues BRANCH_ID1
+      
+  from TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+       audit_region_dtl             v,
+       audit_region_mst             k,
+       branch_dtl_new               p,
+       TBL_DOC_AUDIT_ISSUES         m,
+       tbl_fzm_master                f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and v.region_id=f.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   and t.irr_status_id=2
+   and trunc(t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+union all
+select
+       f.fzm,t.issues BRANCH_ID1
+       
+  from TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+       audit_region_dtl                   v,
+       audit_region_mst                   k,
+      branch_dtl_new                     p,
+       TBL_DOC_AUDIT_ISSUES               m,
+       tbl_fzm_master                     f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and f.region_id=v.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+ and t.irr_status_id=2
+   and trunc(t.tra_dt) between  v_dtl1(1) and v_dtl1(2) 
+   union all
+   select
+       f.fzm,t.issues BRANCH_ID1
+      
+  from TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+       audit_region_dtl                   v,
+       audit_region_mst                   k,
+      branch_dtl_new                     p,
+       TBL_DOC_AUDIT_ISSUES               m,
+       tbl_fzm_master                     f
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and f.region_id=v.region_id
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+ and t.irr_status_id=2
+   and trunc(t.tra_dt) between  v_dtl1(1) and v_dtl1(2) )h group by h.fzm)x90
+  on  x90.fzm=fzm.fzm
+
+ order by fzm.fzm;
+ 
+
+
+
+--------------------------------------
+  
+  end if;
+
+  if p_flag = '2' then
+    ---------------Aswin doc Audit
+  
+    v_dtl1 := splitstr(p_pageVal1, '^');
+  
+    open QRY_RESULT for
+     
+select X20.FZM,
+       nvl(x20.BRANCH_ID1, 0) as "LIVE INVENTRY",
+       nvl(x20.BRANCH_ID2, 0) "SETTLED_INVENTRY",
+       nvl(x20.BRANCH_ID3, 0) "Active Customer Id",
+       nvl(x20.BRANCH_ID4, 0) "Maintain Register",
+       nvl(x20.BRANCH_ID5, 0) "Display Certificate",
+       nvl(x20.BRANCH_ID6, 0) "Others",
+       nvl(x20.BRANCH_ID7, 0) "Forex",
+       nvl(x20.BRANCH_ID8, 0) "MTSS Transsaction",
+       nvl(x20.BRANCH_ID9, 0) "Payment Ratification",
+       nvl(x20.BRANCH_ID10, 0) "Paid auction checklist",
+       nvl(x20.BRANCH_ID11, 0) "Unpaid auction checklist",
+       (COALESCE(x20.BRANCH_ID1, 0) + COALESCE(X20.BRANCH_ID2, 0) +
+       COALESCE(x20.BRANCH_ID3, 0) + COALESCE(x20.BRANCH_ID4, 0) +
+       COALESCE(x20.BRANCH_ID5, 0) + COALESCE(x20.BRANCH_ID6, 0) +
+       COALESCE(x20.BRANCH_ID7, 0) + COALESCE(x20.BRANCH_ID8, 0) +
+       COALESCE(x20.BRANCH_ID9, 0) + COALESCE(x20.BRANCH_ID10, 0) +
+       COALESCE(x20.BRANCH_ID11, 0)) as total
+  from (select distinct (fzm.fzm),
+                        x.BRANCH_ID1,
+                        x1.BRANCH_ID2,
+                        x4.BRANCH_ID3,
+                        x5.BRANCH_ID4,
+                        x6.BRANCH_ID5,
+                        x7.BRANCH_ID6,
+                        x8.BRANCH_ID7,
+                        x9.BRANCH_ID8,
+                        x10.BRANCH_ID9,
+                        x11.BRANCH_ID10,
+                        x12.BRANCH_ID11
+          from tbl_fzm_master fzm
+          left outer join (select f.fzm, count(t.irregularity) BRANCH_ID1
+                          
+                            from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                                 mana0809.audit_region_dtl      v,
+                                 mana0809.audit_region_mst      k,
+                                 mana0809.branch_dtl_new        p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES  m,
+                                 mana0809.tbl_fzm_master        f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.irregularity not like '%Verified & Ok%' and
+                                 t.irregularity not like
+                                 '%No issue noticed%' and
+                                 t.irregularity not like '%Not Applicable%' and
+                                 t.irregularity not like '%Not applicable%')
+                             and t.spot_rect_st <> 1
+                             and t.irregularity like
+                                 '%' || m.issues(+) || '%'
+                             and t.issue_typ_id = m.type_id(+)
+                             and t.class_id = m.class_id(+)
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x
+            on fzm.fzm = x.fzm
+          left outer join (select f.fzm, count(t.irregularity) BRANCH_ID2
+                          
+                            from mana0809.TBL_DOC_settled_INVENTRY t,
+                                 mana0809.audit_region_dtl         v,
+                                 mana0809.audit_region_mst         k,
+                                 mana0809.branch_dtl_new           p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                                 mana0809.tbl_fzm_master           f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.irregularity not like '%Verified & Ok%' and
+                                 t.irregularity not like
+                                 '%No issue noticed%' and
+                                 t.irregularity not like '%Not Applicable%' and
+                                 t.irregularity not like '%Not applicable%')
+                             and t.spot_rect_st <> 1
+                             and t.irregularity like
+                                 '%' || m.issues(+) || '%'
+                             and t.issue_typ_id = m.type_id(+)
+                             and t.class_id = m.class_id(+)
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x1
+            on (x.fzm = x1.fzm)
+          left outer join (select f.fzm, count(t.irregularity) BRANCH_ID3
+                          
+                            from mana0809.TBL_DOC_active_customer t,
+                                 mana0809.audit_region_dtl        v,
+                                 mana0809.audit_region_mst        k,
+                                 mana0809.branch_dtl_new          p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                                 mana0809.tbl_fzm_master          f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.irregularity not like '%Verified & Ok%' and
+                                 t.irregularity not like
+                                 '%No issue noticed%' and
+                                 t.irregularity not like '%Not Applicable%' and
+                                 t.irregularity not like '%Not applicable%')
+                             and t.spot_rect_st <> 1
+                             and t.irregularity like
+                                 '%' || m.issues(+) || '%'
+                             and t.issue_typ_id = m.type_id(+)
+                             and t.class_id = m.class_id(+)
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x4
+            on x1.fzm = x4.fzm
+          left outer join (select f.fzm, count(t.irr_rmk) BRANCH_ID4
+                          
+                            from mana0809.TBL_DOC_maintain_register t,
+                                 mana0809.tbl_doc_audit_checklist   b,
+                                 mana0809.audit_region_dtl          v,
+                                 mana0809.audit_region_mst          k,
+                                 mana0809.branch_dtl_new            p,
+                                 mana0809.tbl_fzm_master            f
+                          
+                           where t.que_id = b.que_id
+                             and t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and b.class_id = 4
+                             and (t.irr_rmk not like '%Verified & Ok%' and
+                                 t.irr_rmk not like '%No issue noticed%' and
+                                 t.irr_rmk not like '%Not applicable%' and
+                                 t.irr_rmk not like '%Not Applicable%')
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x5
+            on x5.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.irr_rmk) BRANCH_ID5
+                          
+                            from mana0809.TBL_DOC_display_certificate t,
+                                 mana0809.tbl_doc_audit_checklist     b,
+                                 mana0809.audit_region_dtl            v,
+                                 mana0809.audit_region_mst            k,
+                                 mana0809.branch_dtl_new              p,
+                                 mana0809.tbl_fzm_master              f
+                          
+                           where t.que_id = b.que_id
+                             and t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and b.class_id = 5
+                             and (t.irr_rmk not like '%Verified & Ok%' and
+                                 t.irr_rmk not like '%No issue noticed%' and
+                                 t.irr_rmk not like '%Not applicable%' and
+                                 t.irr_rmk not like '%Not Applicable%')
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x6
+            on x6.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.irr_rmk) BRANCH_ID6
+                          
+                            from mana0809.Tbl_Doc_Audit_Others    t,
+                                 mana0809.tbl_doc_audit_checklist b,
+                                 mana0809.audit_region_dtl        v,
+                                 mana0809.audit_region_mst        k,
+                                 mana0809.                        branch_dtl_new p,
+                                 mana0809.tbl_fzm_master          f
+                          
+                           where t.que_id = b.que_id
+                             and t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and b.class_id = 6
+                             and (t.irr_rmk not like '%Verified & Ok%' and
+                                 t.irr_rmk not like '%No issue noticed%' and
+                                 t.irr_rmk not like '%Not applicable%' and
+                                 t.irr_rmk not like '%Not Applicable%')
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x7
+            on x7.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.issues) BRANCH_ID7
+                          
+                            from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                                 mana0809.audit_region_dtl             v,
+                                 mana0809.audit_region_mst             k,
+                                 mana0809.branch_dtl_new               p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                                 mana0809.tbl_fzm_master               f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.issues not like '%Verified & Ok%' and
+                                 t.issues not like '%No issue noticed%' and
+                                 t.issues not like '%Not Applicable%' and
+                                 t.issues not like '%Not applicable%')
+                             and t.irr_status_id <> 1
+                             and t.issues = m.issues(+)
+                             and t.iss_id = m.type_id(+)
+                             and t.TRA_DT between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x8
+            on x8.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.issues) BRANCH_ID8
+                          
+                            from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                                 mana0809.audit_region_dtl              v,
+                                 mana0809.audit_region_mst              k,
+                                 mana0809.branch_dtl_new                p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                                 mana0809.tbl_fzm_master                f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.issues not like '%Verified & Ok%' and
+                                 t.issues not like '%No issue noticed%' and
+                                 t.issues not like '%Not Applicable%' and
+                                 t.issues not like '%Not applicable%')
+                             and t.irr_status_id <> 1
+                             and t.issues = m.issues(+)
+                             and t.iss_id = m.type_id(+)
+                                
+                             and t.TRA_DT between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x9
+            on x9.fzm = x1.fzm
+          left outer join
+        
+         (select f.fzm, count(t.issues) BRANCH_ID9
+         
+           from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                mana0809.audit_region_dtl             v,
+                mana0809.audit_region_mst             k,
+                mana0809.branch_dtl_new               p,
+                mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                mana0809.tbl_fzm_master               f
+          where t.branch_id = v.branch_id
+            and v.region_id = k.region_id
+            and v.branch_id = p.BRANCH_ID
+            and v.region_id = f.region_id
+            and (t.issues not like '%Verified & Ok%' and
+                t.issues not like '%No issue noticed%' and
+                t.issues not like '%Not Applicable%' and
+                t.issues not like '%Not applicable%')
+            and t.irr_status_id <> 1
+            and t.issues = m.issues(+)
+            and t.iss_id = m.type_id(+)
+               
+            and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+         
+          group by f.fzm) x10
+            on x10.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.issues) BRANCH_ID10
+                          
+                            from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                                 mana0809.audit_region_dtl                 v,
+                                 mana0809.audit_region_mst                 k,
+                                 mana0809.branch_dtl_new                   p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                                 mana0809.tbl_fzm_master                   f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.issues not like '%Verified & Ok%' and
+                                 t.issues not like '%No issue noticed%' and
+                                 t.issues not like '%Not Applicable%' and
+                                 t.issues not like '%Not applicable%')
+                             and t.irr_status_id <> 1
+                             and t.issues = m.issues(+)
+                             and t.iss_id = m.type_id(+)
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x11
+            on x11.fzm = x1.fzm
+          left outer join (select f.fzm, count(t.issues) BRANCH_ID11
+                          
+                            from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                                 mana0809.audit_region_dtl                   v,
+                                 mana0809.audit_region_mst                   k,
+                                 mana0809.branch_dtl_new                     p,
+                                 mana0809.TBL_DOC_AUDIT_ISSUES               m,
+                                 mana0809.tbl_fzm_master                     f
+                           where t.branch_id = v.branch_id
+                             and v.region_id = k.region_id
+                             and v.branch_id = p.BRANCH_ID
+                             and v.region_id = f.region_id
+                             and (t.issues not like '%Verified & Ok%' and
+                                 t.issues not like '%No issue noticed%' and
+                                 t.issues not like '%Not Applicable%' and
+                                 t.issues not like '%Not applicable%')
+                             and t.irr_status_id <> 1
+                             and t.issues = m.issues(+)
+                             and t.iss_id = m.type_id(+)
+                                
+                             and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+                           group by f.fzm) x12
+            on x12.fzm = x1.fzm
+        
+        ) x20
+
+ ORDER BY FZM ASC;
+
+  
+  
+  end if;
+
+if p_flag = '3' then
+    ---------------Aswin doc Audit
+  
+    v_dtl1 := splitstr(p_pageVal1, '^');
+  
+    open QRY_RESULT for
+                   
+                
+    select count(v.count_1),
+             trunc(to_date(TRUNC(v.dates, 'month'), 'dd-MM-yyyy')) dates,
+             v.fzm_id from (select  f.fzm_id, t.irregularity count_1, trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+                             
+          
+            from mana0809.TBL_DOC_LIVE_INVENTRY t,
+                 mana0809.audit_region_dtl      v,
+                 mana0809.audit_region_mst      k,
+                 mana0809.branch_dtl_new        p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES  m,
+                 mana0809.tbl_fzm_master        f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and f.region_id = v.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select  f.fzm_id, t.irregularity count_1, trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_settled_INVENTRY t,
+                 mana0809.audit_region_dtl         v,
+                 mana0809.audit_region_mst         k,
+                 mana0809.branch_dtl_new           p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES     m,
+                 mana0809.tbl_fzm_master           f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                --------------------------
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.irregularity count_1, trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_active_customer t,
+                 mana0809.audit_region_dtl        v,
+                 mana0809.audit_region_mst        k,
+                 mana0809.branch_dtl_new          p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES    m,
+                 mana0809.tbl_fzm_master          f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.irregularity not like '%Verified & Ok%' and
+                 t.irregularity not like '%No issue noticed%' and
+                 t.irregularity not like '%Not Applicable%' and
+                 t.irregularity not like '%Not applicable%')
+             and t.spot_rect_st <> 1
+             and t.irregularity like '%' || m.issues(+) || '%'
+             and t.issue_typ_id = m.type_id(+)
+             and t.class_id = m.class_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.irr_rmk count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_maintain_register t,
+                 mana0809.tbl_doc_audit_checklist   b,
+                 mana0809.                          audit_region_dtl v,
+                 mana0809.                          audit_region_mst k,
+                 mana0809.                          branch_dtl_new p,
+                 mana0809.tbl_fzm_master            f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 4
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                -----------------------------------------------------------------------------------------------------
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.irr_rmk count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_display_certificate t,
+                 mana0809.tbl_doc_audit_checklist     b,
+                 mana0809.audit_region_dtl            v,
+                 mana0809.audit_region_mst            k,
+                 mana0809.branch_dtl_new              p,
+                 mana0809.tbl_fzm_master              f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 5
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.irr_rmk count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.Tbl_Doc_Audit_Others    t,
+                 mana0809.tbl_doc_audit_checklist b,
+                 mana0809.audit_region_dtl        v,
+                 mana0809.audit_region_mst        k,
+                 mana0809.branch_dtl_new          p,
+                 mana0809.tbl_fzm_master          f
+           where t.que_id = b.que_id
+             and t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and b.class_id = 6
+             and (t.irr_rmk not like '%Verified & Ok%' and
+                 t.irr_rmk not like '%No issue noticed%' and
+                 t.irr_rmk not like '%Not applicable%' and
+                 t.irr_rmk not like '%Not Applicable%')
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select
+          
+           f.fzm_id, t.issues count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.issues count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+                 mana0809.audit_region_dtl              v,
+                 mana0809.audit_region_mst              k,
+                 mana0809.branch_dtl_new                p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES          m,
+                 mana0809.tbl_fzm_master                f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.issues count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+                 mana0809.audit_region_dtl             v,
+                 mana0809.audit_region_mst             k,
+                 mana0809.branch_dtl_new               p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES         m,
+                 mana0809.tbl_fzm_master               f
+          
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.issues count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                 v,
+                 mana0809.audit_region_mst                 k,
+                 mana0809.branch_dtl_new                   p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES             m,
+                 mana0809.tbl_fzm_master                   f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+          union all
+          
+          select f.fzm_id, t.issues count_1,trunc(to_date(TRUNC(t.tra_dt, 'month'),
+                                            'dd-MM-yyyy')) dates
+          
+            from mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+                 mana0809.audit_region_dtl                   v,
+                 mana0809.audit_region_mst                   k,
+                 mana0809.branch_dtl_new                     p,
+                 mana0809.TBL_DOC_AUDIT_ISSUES               m,
+                 mana0809.tbl_fzm_master                     f
+           where t.branch_id = v.branch_id
+             and v.region_id = k.region_id
+             and v.branch_id = p.BRANCH_ID
+             and v.region_id = f.region_id
+             and (t.issues not like '%Verified & Ok%' and
+                 t.issues not like '%No issue noticed%' and
+                 t.issues not like '%Not Applicable%' and
+                 t.issues not like '%Not applicable%')
+             and t.irr_status_id <> 1
+             and t.issues = m.issues(+)
+             and t.iss_id = m.type_id(+)
+                
+             and t.tra_dt between  v_dtl1(1) and v_dtl1(2) 
+              ) v
+                group by trunc(to_date(TRUNC(v.dates, 'month'), 'dd-MM-yyyy')),
+                v.fzm_id
+       order by v.fzm_id,
+                trunc(to_date(TRUNC(v.dates, 'month'), 'dd-MM-yyyy'));
+  
+
+                ---------------------------------------------------------------
+  end if;
+  
+  if p_flag = '4' then
+    ---------------Aswin doc Audit
+  
+    v_dtl1 := splitstr(p_pageVal1, '^');
+  
+    open QRY_RESULT for
+  
+  
+
+  
+  
+select  count(to_char(b.cnt)) as irregularityreported,
+ trunc(to_date(TRUNC(b.dates, 'month'), 'dd-MM-yyyy')) Dates,
+  b.ClassID
+      
+      
+  from (select  1 ClassID,
+       t.irregularity cnt,
+       trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+  from mana0809.TBL_DOC_LIVE_INVENTRY t,
+       mana0809.audit_region_dtl      v,
+       mana0809.audit_region_mst      k,
+       mana0809.branch_dtl_new        p,
+       mana0809.TBL_DOC_AUDIT_ISSUES  m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+    and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+        
+        union all
+       
+       select 2 ClassID,
+       t.irregularity cnt,
+                      trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+      
+  from mana0809.TBL_DOC_settled_INVENTRY t,
+       mana0809.audit_region_dtl         v,
+       mana0809.audit_region_mst         k,
+       mana0809.branch_dtl_new           p,
+       mana0809.TBL_DOC_AUDIT_ISSUES     m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+              and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+        union all
+        
+          select 3 ClassID,
+       t.irregularity cnt,
+        trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+       
+  from mana0809.TBL_DOC_active_customer t,
+       mana0809.audit_region_dtl        v,
+       mana0809.audit_region_mst        k,
+       mana0809.branch_dtl_new          p,
+       mana0809.TBL_DOC_AUDIT_ISSUES    m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.irregularity not like '%Verified & Ok%' and
+       t.irregularity not like '%No issue noticed%' and
+       t.irregularity not like '%Not Applicable%' and
+       t.irregularity not like '%Not applicable%')
+   and t.spot_rect_st <> 1
+   and t.irregularity like '%' || m.issues(+) || '%'
+   and t.issue_typ_id = m.type_id(+)
+   and t.class_id = m.class_id(+)
+              and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+        union all
+        
+      select 4 ClassID,
+       t.irr_rmk cnt,
+                     trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+  from TBL_DOC_maintain_register t,
+       tbl_doc_audit_checklist   b,
+       audit_region_dtl          v,
+       audit_region_mst          k,
+       branch_dtl_new            p
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and b.class_id = 4
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+                  and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+
+        union all
+            select 5 ClassID, 
+            t.irr_rmk cnt,
+                          trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+       from TBL_DOC_display_certificate t,
+            tbl_doc_audit_checklist     b,
+            audit_region_dtl            v,
+            audit_region_mst            k,
+            branch_dtl_new              p
+      where t.que_id = b.que_id
+        and t.branch_id = v.branch_id
+        and v.region_id = k.region_id
+        and v.branch_id = p.BRANCH_ID
+        and b.class_id = 5
+        and (t.irr_rmk not like '%Verified & Ok%' and
+            t.irr_rmk not like '%No issue noticed%' and
+            t.irr_rmk not like '%Not applicable%' and
+            t.irr_rmk not like '%Not Applicable%')
+                and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+
+
+
+        union all
+        
+        
+        
+      select 6 ClassID,
+       t.irr_rmk cnt,
+                     trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+  from Tbl_Doc_Audit_Others    t,
+       tbl_doc_audit_checklist b,
+       audit_region_dtl        v,
+       audit_region_mst        k,
+       branch_dtl_new          p
+ where t.que_id = b.que_id
+   and t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and b.class_id = 6
+   and (t.irr_rmk not like '%Verified & Ok%' and
+       t.irr_rmk not like '%No issue noticed%' and
+       t.irr_rmk not like '%Not applicable%' and
+       t.irr_rmk not like '%Not Applicable%')
+           and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+        union all
+
+        select 7 ClassID,
+
+       t.issues cnt,
+                      trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+      
+  from mana0809.TBL_DOC_AUDIT_MTSS_CHECKLIST t,
+       mana0809.audit_region_dtl             v,
+       mana0809.audit_region_mst             k,
+       mana0809.branch_dtl_new               p,
+       mana0809.TBL_DOC_AUDIT_ISSUES         m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+   
+
+           and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+        
+        union all
+        
+                select 8 ClassID,
+ 
+       t.issues cnt,
+                      trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+  from mana0809.TBL_DOC_AUDIT_FOREX_CHECKLIST t,
+       mana0809.audit_region_dtl              v,
+       mana0809.audit_region_mst              k,
+       mana0809.branch_dtl_new                p,
+       mana0809.TBL_DOC_AUDIT_ISSUES          m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+          
+        union all
+        
+        select 9 ClassID,
+          t.issues cnt,
+               trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates
+
+     from mana0809.TBL_DOC_AUDIT_PAY_RECT_CLIST t,
+          mana0809.audit_region_dtl             v,
+          mana0809.audit_region_mst             k,
+          mana0809.branch_dtl_new               p,
+          mana0809.TBL_DOC_AUDIT_ISSUES         m
+    where t.branch_id = v.branch_id
+      and v.region_id = k.region_id
+      and v.branch_id = p.BRANCH_ID
+      and (t.issues not like '%Verified & Ok%' and
+          t.issues not like '%No issue noticed%' and
+          t.issues not like '%Not Applicable%' and
+          t.issues not like '%Not applicable%')
+      and t.irr_status_id <> 1
+      and t.issues = m.issues(+)
+      and t.iss_id = m.type_id(+)
+      
+        
+        and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+           
+          union all 
+          
+           select
+           10 ClassID, 
+       t.issues cnt,
+                      trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates 
+
+       
+  from mana0809.TBL_DOC_AUDIT_AUC_PAID_CHECKLIST t,
+       mana0809.audit_region_dtl                 v,
+       mana0809.audit_region_mst                 k,
+       mana0809.branch_dtl_new                   p,
+       mana0809.TBL_DOC_AUDIT_ISSUES             m
+ where t.branch_id = v.branch_id
+   and v.region_id = k.region_id
+   and v.branch_id = p.BRANCH_ID
+   and (t.issues not like '%Verified & Ok%' and
+       t.issues not like '%No issue noticed%' and
+       t.issues not like '%Not Applicable%' and
+       t.issues not like '%Not applicable%')
+   and t.irr_status_id <> 1
+   and t.issues = m.issues(+)
+   and t.iss_id = m.type_id(+)
+
+        and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+
+           
+           union all 
+     select
+           11 ClassID,
+              t.issues cnt,
+                             trunc(to_date(TRUNC(t.tra_dt, 'month'), 'dd-MM-yyyy')) dates from
+
+          mana0809.TBL_DOC_AUDIT_AUC_UNPAID_CHECKLIST t,
+              mana0809.audit_region_dtl                   v,
+              mana0809.audit_region_mst                   k,
+              mana0809.branch_dtl_new                     p,
+              mana0809.TBL_DOC_AUDIT_ISSUES               m
+        where t.branch_id = v.branch_id
+          and v.region_id = k.region_id
+          and v.branch_id = p.BRANCH_ID
+          and (t.issues not like '%Verified & Ok%' and
+              t.issues not like '%No issue noticed%' and
+              t.issues not like '%Not Applicable%' and
+              t.issues not like '%Not applicable%')
+          and t.irr_status_id <> 1
+          and t.issues = m.issues(+)
+          and t.iss_id = m.type_id(+)
+            and t.tra_dt between v_dtl1(1) and v_dtl1(2)
+          
+              
+        
+         ) b
+ group by b.ClassID, trunc(to_date(TRUNC(b.dates, 'month'), 'dd-MM-yyyy'))
+ order by b.ClassID, trunc(to_date(TRUNC(b.dates, 'month'), 'dd-MM-yyyy'));
+
+
+
+
+
+
+end if;
+
+  if p_flag = 'RTSEsToolKitUpdation' then
+    proc_rtse_toolkit_updation(p_pageVal1, p_pageVal2, QRY_RESULT);
+  
+  end if;
+  
+  
+  if p_flag = 'MothwiseTB' then
+    proc_tb_test(p_Flag,p_pageVal1, p_pageVal2,p_ParVal,QRY_RESULT);
+  
+  end if;
+  
+    
+  if p_flag = '1566' then
+    open QRY_RESULT for
+    select branch_id from tbl_camera_issues t where t.status=2 and t.branch_id='2';
+end if;
+
+end PROC_COMMON_SELECT;

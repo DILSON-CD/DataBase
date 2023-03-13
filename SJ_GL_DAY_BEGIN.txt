@@ -1,0 +1,150 @@
+CREATE OR REPLACE Procedure SJ_GL_DAY_BEGIN
+Is
+   SysDt     Date   := to_Date(sysdate);
+   EffDt     Date   := SysDt - 1;
+   Day       Number := to_number(to_char(SysDt,'D'));
+   flg number:=0;
+   a   Number;
+Begin
+   update general_parameter t  set t.parmtr_value = 0 where t.firm_id = 1 and t.module_id = 7 and t.parmtr_id in (107,108,109);
+   Commit;
+   insert into TBL_DOTNET_USER_LOG_his(User_Id,Intime,Outtime,Tradt,Branch_Id) select t.user_id,t.intime,t.outtime,t.tradt,t.branch_id from  TBL_DOTNET_USER_LOG t;
+   Commit;
+   Execute Immediate 'truncate table TBL_DOTNET_USER_LOG';
+   Commit;
+   Execute Immediate 'truncate table GL_DAY_BEGIN_LOG'; Commit;
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('GOLD LOAN DAY BEGIN LOG',sysdate); Commit;
+   intt_rcvd;
+   SP_GL_INTACCURED_COLL_1(SysDt,17);
+   Proc_Auto_Live_Updation;
+   sp_pl_auc_tfr_shortterms;
+   -----Moved from sp_auc_defferment procedure due to
+    Insert into UPDATION_LOG(MODULE,IN_TIME) values ('AUC_MST_EXCEPTIONS',sysdate); Commit;
+    sp_auc_mst_exceptions;
+    Update UPDATION_LOG set OUT_TIME = sysdate where module = 'AUC_MST_EXCEPTIONS'; Commit;
+    SP_AUCTIONGOLD_LIVE_EXPIRE(a);
+    ---- end
+   proc_auction_intimation_letter; --- SW Req 44539 -  SR1158831
+   proc_auction_reduction_inc_mon;
+   PROC_AUTO_AUCTION_SCHEDULING;  -- SW Req 47151 - Automatic auction scheduling
+   surplus_auto_neftpay;
+
+   SP_GL_SET_PARAMETERS(SysDt,13);
+   SP_ASSIGNMENT_DATA(18);
+   --SP_GL_SCHEME_UPD_2CRORE(EffDt,SysDt,4); --commented on 06-nov-2019 for checking
+   SP_GL_UPDATE_WEIGH_BALANCE(5);
+   --SP_GL_MS159(SysDt,6); --commented on 06-nov-2019 for checking
+  -- SP_GL_RECOVERY_OVERDUE(EffDt,7);
+   Sp_Pledge_yesterday_update();--Add Aug 14 2014 Done By Regitha for Gold Loan inventory status updation
+   --Add on 07-aug-2014 Done by Regitha
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('Mis_Pledge_yesterday_live',sysdate); Commit;
+   insert   /*+ append parallel(10) */ into  mis.pledge_yesterday_live(branch_id, firm_id, pledge_no, scheme_id, cust_id, tra_dt, maturity_dt, act_weight, net_weight, apx_val, lnd_rate, pledge_val, int_rate, ser_rate, app_rate, scheme_nm, cust_name, period, days_pledged, days_intdt, close_dt, due_dt, balance, status_of, days_duedt, int_acrued, festival_offer, stone_weight, interest_rcvd, int_status, mtm_percentage, live_status, last_tradt) select branch_id, firm_id, pledge_no, scheme_id, cust_id, tra_dt, maturity_dt, act_weight, net_weight, apx_val, lnd_rate, pledge_val, int_rate, ser_rate, app_rate, scheme_nm, cust_name, period, days_pledged, days_intdt, close_dt, due_dt, balance, status_of, days_duedt, int_acrued, festival_offer, stone_weight, nvl(interest_rcvd,0), int_status, mtm_percentage, live_status, last_tradt from  tbl_pledge_yesterday_live;
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'Mis_Pledge_yesterday_live';Commit;
+   Commit;
+   --End
+   --Add Gold Loan Error report query added in Gold LOan day begin Aug 14 2014 Done By Regitha
+   merge into mana0809.error_table a using (select /*+Parallel(10)*/ b.branch_id branch_id,b.firm_id firm_id, 34400 as account_no,sum(b.balance) as balance from mana0809.tbl_pledge_yesterday_live b where b.live_status = 0 group by branch_id, firm_id, 34400 ) c on (a.branch_id=c.branch_id and a.account_no=c.account_no and a.firm_id=c.firm_id) when matched then update set a.sub_amt1=balance;
+   commit;
+   ---New procedure for FormK letter process added - sw req 46345
+   proc_formk_letter;
+   proc_special_letter;
+
+   -- New procedure for FormK letter process added - sw req 46345
+   --End
+   /*If Day <> 2 Then -- Except Monday
+      SP_GL_YESTERDAY_DISBURSEMENT(EffDt,1);
+       SP_GL_YESTERDAY_SETTLEMENT(EffDt,10);
+   End If;*/
+   SP_GL_DISBURSEMENT_ALERT(SysDt,8);
+   SP_GL_SIDBI(SysDt,12);
+   --process_RIP_BranchIncentive(); --commented on 06-nov-2019 for checking
+   --pledge_letter_charge;
+    --sp_pl_auction_transfer_list;
+   --sp_pl_auc_tfr_shortterms;
+
+   /*Insert into UPDATION_LOG(MODULE,IN_TIME) values ('CallCenterDlyCallList',sysdate); Commit;
+   sp_branchcallcentre_process();
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'CallCenterDlyCallList';Commit;*/
+  /* --Auction Report Genearation added on 8th Jan 2016(Deepa)
+   sp_auc_report_generation;
+
+
+  --------------BA OUTSTANDING REPORT-----------
+
+  insert into updation_log(module,in_time) values('proc_ba_outstand_summary_rpt',sysdate);
+  commit;
+   proc_ba_outstand_summary_rpt;
+   commit;
+  update updation_log set out_time=sysdate where module='proc_ba_outstand_summary_rpt';
+  commit;
+
+  --------------------------------------------------------------------------
+
+   --Settled pledges yield report generation added by Vini on 18-feb-2016 as per sw req 36215
+   sp_gl_settlement_yield;*/
+
+     ----Additional Gold for repledge------
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('additional_gold_rpt',sysdate); Commit;
+     proc_additional_gold_rpt();
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'additional_gold_rpt';Commit;
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('STICKER UPDATED REPORT',sysdate); Commit;
+   proc_sticker_report;
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'STICKER UPDATED REPORT';Commit;
+   --incentive lost customer by karthik
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('lost_customer_incentive',sysdate); Commit;
+   -- Pr_Spl_Incent_Lostcus_daily();
+   sp_lostcus_incentive();
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'lost_customer_incentive';Commit;
+    sbt_ernakulam_new(flg);
+   commit;
+   ---commented for optomization on 19/nov/2020
+   ---Sbi_Stock_data_new();
+   commit;
+   proc_aims_aemail;
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('Alert_automation1',sysdate); Commit;
+   -- Pr_Spl_Incent_Lostcus_daily();
+   proc_alerts_automation_new();
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'Alert_automation1';Commit;
+   --sp_auc_defferment;
+   --sp_pms_auction; --commented on 06-nov-2019 for checking
+  -- SP_GL_5LAKH_CUSTOMER(11);
+   if to_char(sysdate,'D') = 1 then
+     sp_auc_mis_report;
+     transaction_above_five_lakhs;
+   end if;
+   NPA_AND_PA_ASSET;
+  -- SP_AUC_SURPLUS_INTIMATION_DATA;
+   --sp_pledge_Acrual_settlement;
+   -----------------------------------------------------------------------------------
+   --Commented due to slowness in morning process - from 25-nov-2016 - Done by Vini
+   -- sp_gl_marktomark(18);
+   --sp_gl_marktomark_rpt(20);
+    ---- Done by vini
+   ------------------------------------------------------------------------------
+   commit;
+  /*  ----------------------40401-------------------
+  insert into updation_log(module,in_time) values('AUCTION_CUS_CALL',sysdate);
+  commit;
+  proc_auction_call_1();
+  update updation_log set out_time=sysdate where module='AUCTION_CUS_CALL';
+  commit;
+  ----------------------40401-------------------
+   */
+   --Insert into UPDATION_LOG(MODULE,IN_TIME) values ('SHOP VISIT CALL GENERATION',sysdate); Commit; --18-8-21
+   --sp_shopvisit_callgen;  -- SW Req 45963--18-8-21
+   --Update UPDATION_LOG set OUT_TIME = sysdate where module = 'SHOP VISIT CALL GENERATION'; Commit;   --18-8-21
+   --proc_auc_letter_summary_report;
+   Insert into UPDATION_LOG(MODULE,IN_TIME) values ('MOVING KEYAUDIT DATA',sysdate); Commit;
+   proc_KeyAudit_Monthly;
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'MOVING KEYAUDIT DATA'; Commit;
+   proc_rhavisit_his_move;
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'GOLD LOAN DAY BEGIN LOG'; Commit;
+   --------46985 - Auction Compliance Report - Vini
+   proc_auc_compliance_report;
+   proc_internalauditrp_mailalert;
+   proc_internalaudit_report_mail;
+   /*Insert into UPDATION_LOG(MODULE,IN_TIME) values ('PROC_NOTICE_DISTRIBUTION_CHECK',sysdate); Commit;
+     proc_notice_distribution_check;
+   Update UPDATION_LOG set OUT_TIME = sysdate where module = 'PROC_NOTICE_DISTRIBUTION_CHECK'; Commit;
+*/
+End;

@@ -1,0 +1,5090 @@
+create or replace procedure PROC_DOOR_CALL_CENTER(p_flag       in   varchar2,
+                                         p_pageVal1    in   varchar2,
+                                         p_pageVal2     in   varchar2,
+                                         p_ParVal    in   varchar2 default ' ',
+                                         QRY_RESULT   OUT  RESULT_TYPE.QRY_RESULT) is
+    v_str array;
+   v_str1 array;
+    v_res varchar2(4000);
+     v_res1 array;
+    v_brid number;
+    v_sch_dt date;
+    cnt    number;
+    meet_seqq number;
+    slno1 number;
+    v_cnt number;
+    v_cnt1 number;
+    cntt   number;
+    cntt2  number;
+    dpt_head number;
+    v_area number;
+    v_mobno number;
+    v_empcode number;
+    v_dtl2 array;
+    v_name varchar2(100);
+    slno2 number;
+    v_cnt2 number;
+    v_slno   number;
+    empcnt       NUMBER;
+    emp_code number;
+   v_qid number;
+       postid number;
+       post number;
+       countid number;
+       branchid number;
+       areaid number;
+       regid number;
+       fzmid number;
+       departmentid number;
+       v_spliter_a array;
+       v_seqno number;
+       v_dtl1  array;
+       lang_id varchar2(10);
+       oglcnt number;
+       npacnt number;
+       overduecnt number;
+       auctioncnt number;
+       rebatecnt number;
+       local_lang varchar2(50);
+       flag number;
+       indata varchar2(200);
+       as_outresult SYS_REFCURSOR;
+       ErrorStat number;
+       ErrorMsg number;
+       fivestar number;
+       V_annual_day_id number;
+     v_Ara_Id number;
+       v_Regid number;
+       V_epost  number;
+          v_seq_id number;
+        v_re clob;
+          -- V_pid    number;
+  V_c_cnt1 number;
+  -- V_emp    number;
+  V_cid    varchar2(50);
+  V_brdtl2 number;
+  V_ABid   number;
+  blck_cnt number;
+  br_cnt            number;
+rq_cnt            number;
+zh_count          number;
+cnt_head        number;
+zh                varchar2(10);
+BLOCK_ST          NUMBER;
+punch_sts         number;
+
+begin
+  if p_pageVal1='LEADCALL' then
+    if   p_ParVal='1' then
+      open QRY_RESULT for
+      -- select t.mobile_no,t.mobile_no from DOORSTEP_WEB_LEAD t where t.cus_sat is null;
+        select t.cust_id,t.cust_id from TBL_DL_LEAD_FEEDBACK t where t.qstn1 in (1,3) and t.status=1 and t.cus_sat is null;
+  elsif  p_ParVal='2' then
+     open QRY_RESULT for
+        select t.mobile_no,t.cust_name from DOORSTEP_WEB_LEAD t where t.cus_sat is null;
+  elsif  p_ParVal='3' then
+        select b.area_id into v_area from employee_master e,branch_dtl_new b where e.branch_id=b.BRANCH_ID and  e.emp_code=p_pageVal2;
+
+     open QRY_RESULT for
+        select t.req_id ||'~'||t.br_id,b.BRANCH_NAME||'-'||t.req_id from TBL_DOORSTEP_CTRL t,branch_dtl_new b
+where t.br_id=b.BRANCH_ID and  b.area_id=v_area and t.req_status=0;
+ elsif  p_ParVal='4' then
+        select b.area_id into v_area from employee_master e,branch_dtl_new b where e.branch_id=b.BRANCH_ID and  e.emp_code=p_pageVal2;
+
+     open QRY_RESULT for
+    select t.emp_code, b.BRANCH_NAME||'-'||t.emp_code
+  from mana0809.daily_attend t, mana0809.branch_dtl_new b,employee_master e
+ where t.branch_id = b.BRANCH_ID
+ and t.emp_code=e.emp_code
+ and e.post_id not in (1,10,53)
+   and t.m_time is not null
+   and b.area_id = v_area
+   and t.branch_id in
+       (select t.BRANCH_ID
+          from mana0809.daily_attend t, mana0809.branch_dtl_new b
+         where t.branch_id = b.BRANCH_ID
+           and t.m_time is not null
+           and b.area_id = v_area
+         group by t.branch_id having count(t.emp_code) > 3);
+
+      /*  select t.emp_code,b.BRANCH_NAME from mana0809.daily_attend t, mana0809.branch_dtl_new b
+where t.branch_id=b.BRANCH_ID and t.m_time is not null and  b.area_id=v_area;
+\**/
+ /* select b.BRANCH_NAME,t.BRANCH_ID from mana0809.daily_attend t, mana0809.branch_dtl_new b
+where t.branch_id=b.BRANCH_ID and t.m_time is not null and  b.area_id=497 group by t.branch_id,b.BRANCH_NAME
+having count(t.emp_code) > 3;*\*/
+    end if;
+    elsif p_pageVal1='GETCUSDATA' then
+
+      open QRY_RESULT for
+       select t.cust_name,t.tra_dt,t.mobile_no,t.email,decode(f.qstn1,1,'Interested',2,'Not Interested',3,'Call me') response from DOORSTEP_POTENCIAL_CUST t,TBL_DL_LEAD_FEEDBACK f where t.slno=f.cust_id and t.slno=p_ParVal;
+    elsif p_pageVal1='GETWEBCUSDATA' then
+      open QRY_RESULT for
+       select t.cust_name,t.tra_dt,t.mobile_no,t.email from DOORSTEP_WEB_LEAD t where  t.mobile_no=p_ParVal;
+elsif p_pageVal1='GETAHSCEHDATA' then
+
+  v_str:=splitstr(p_ParVal,'~');
+select count(t.emp_code),
+       count(case
+               when t.m_time is not null then
+                t.emp_code
+             end) into v_cnt,v_cnt1
+  from mana0809.DAILY_ATTEND t, mana0809.employee_master e
+ where t.emp_code = e.emp_code
+ and e.post_id in (1,10,240,-265,-250,198,508,56,61,861,870,860,859,240,239,241,109,110,203,58)
+   and t.branch_id = v_str(2);
+
+      open QRY_RESULT for
+       select c.cust_name,t.schedule_time,t.gross_wt,t.address1||','||t.address2,v_cnt,v_cnt1 from TBL_DOORSTEP_REQ_DTL t,tbl_doorstep_cust_mst c where t.customer_id=c.cust_id and  t.req_id=v_str(1);
+
+   elsif p_pageVal1='UPDATECALL' then
+    v_str:=splitstr(p_ParVal,'~');
+   update TBL_DL_LEAD_FEEDBACK t set t.cus_sat=v_str(2),t.upd_dt=sysdate,t.emp_code=v_str(5),t.com=v_str(3) where t.cust_id=v_str(1) and t.status=1;
+
+   if v_str(2)='1' then
+      update TBL_DL_LEAD_FEEDBACK t set t.sch_dt=v_str(4) where t.cust_id=v_str(1) and t.status=1;
+
+     end if;
+   commit;
+      open QRY_RESULT for
+       select 111 from dual;
+
+        elsif p_pageVal1='UPDATEWEBCALL' then
+    v_str:=splitstr(p_ParVal,'~');
+   update DOORSTEP_WEB_LEAD t set t.cus_sat=v_str(2),t.upd_dt=sysdate,t.emp_code=v_str(5),t.com=v_str(3) where t.mobile_no=v_str(1);
+
+   commit;
+      open QRY_RESULT for
+       select 111 from dual;
+      elsif p_pageVal1='SELMENUID' then
+      OPEN QRY_RESULT FOR
+      --select T.MENU_ID,T.REPORT_NAME from TBL_DS_REPORTDTL t order by 2;
+    select T.MENU_ID,T.REPORT_NAME from TBL_DS_REPORTDTL t  where T.REP_ID=p_ParVal and t.status_id=1 order by 2;
+      elsif p_pageVal1='LEGALREPORTS' then
+         v_str:=splitstr(p_ParVal,'~');
+      select  T.REPORT_QUERY into v_res from TBL_DS_REPORTDTL t where t.menu_id=v_str(1);
+
+       if  INSTR(UPPER(v_res), 'DATEM1') > 0 and  INSTR(UPPER(v_res), 'DATEM2') > 0 then
+         v_res:=replace(v_res,'dateM1',v_str(2));
+          v_res:=replace(v_res,'dateM2',v_str(3));
+         end if;
+
+      OPEN QRY_RESULT FOR
+      v_res;
+
+    ---------------------BA Report Added-----------------
+   elsif p_pageVal1='BANEWREPORTS' then
+         v_str:=splitstr(p_ParVal,'~');
+      select  T.REPORT_QUERY into v_res from TBL_DS_REPORTDTL t where t.menu_id=v_str(1);
+
+
+      select b.reg_id,b.area_id,a.post_id into v_Regid,v_Ara_Id,V_epost from emp_master a,branch_detail b where a.BRANCH_ID=b.BRANCH_ID and  a.EMP_CODE=v_str(4);
+
+       if  INSTR(UPPER(v_res), 'DATEM1') > 0 and  INSTR(UPPER(v_res), 'DATEM2') > 0 then
+          v_res:=replace(v_res,'dateM1',v_str(2));
+          v_res:=replace(v_res,'dateM2',v_str(3));
+          v_res:=replace(v_res,'PstID',V_epost);
+          v_res:=replace(v_res,'AraId',v_Ara_Id);
+          v_res:=replace(v_res,'Regd',v_Regid);
+
+         end if;
+
+      OPEN QRY_RESULT FOR
+      v_res;
+
+      --------------------End----------------------------
+
+
+         elsif p_pageVal1='GETREPORTDATA' then
+
+      open QRY_RESULT for
+       select t.rep_type,t.sub_id,t.report_name from TBL_DS_REPORTDTL t where t.menu_id=p_ParVal;
+
+     elsif p_pageVal1='getpostid' then
+  v_str:= splitstr(p_pageVal2, '~');
+           open QRY_RESULT for
+select t.EMP_CODE, t.post_id, t.BRANCH_ID, b.area_id, b.reg_id, f.fzm_id
+  from EMP_MASTER t, branch_detail_new b, tbl_fzm_master f
+ where t.BRANCH_ID = b.branch_id
+   and b.reg_id = f.region_id
+   and t.post_id = v_str(2)
+   and t.emp_code = v_str(1);
+
+
+  elsif p_pageVal1='GETMENUID' then
+      OPEN QRY_RESULT FOR
+      select T.MENU_ID,T.REPORT_NAME from TBL_DS_REPORTDTL t WHERE T.REP_ID=p_ParVal and t.status_id=1order by 2;
+      elsif p_pageVal1='GETREPORTS' then
+         v_str:=splitstr(p_ParVal,'~');
+      select  T.REPORT_QUERY into v_res from TBL_DS_REPORTDTL t where t.menu_id=v_str(1);
+
+       if  INSTR(UPPER(v_res), 'DATEM1') > 0 and  INSTR(UPPER(v_res), 'DATEM2') > 0 then
+         v_res:=replace(v_res,'dateM1',v_str(2));
+          v_res:=replace(v_res,'dateM2',v_str(3));
+          elsif  INSTR(UPPER(v_res), 'DATEM1') > 0  then
+         v_res:=replace(v_res,'dateM1',v_str(2));
+         elsif  INSTR(UPPER(v_res), 'DATEM2') > 0  then
+         v_res:=replace(v_res,'dateM2',v_str(3));
+         end if;
+           if  INSTR(UPPER(v_res), 'UNXID') > 0  then
+         v_res:=replace(v_res,'unxid',v_str(4));
+         end if;
+
+          if  INSTR(UPPER(v_res), 'STID') > 0  then
+         v_res:=replace(v_res,'stid',v_str(5));
+         end if;
+          if  INSTR(UPPER(v_res), 'EMPXID') > 0  then
+         v_res:=replace(v_res,'empxid',v_str(6));
+         end if;
+
+      OPEN QRY_RESULT FOR
+      v_res;
+
+        elsif p_pageVal1='GETREPDATA' then
+     v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+       select t.rep_type,t.sub_id,t.report_name from TBL_DS_REPORTDTL t where t.menu_id=v_str(1) AND T.REP_ID=v_str(2);
+
+   elsif p_pageVal1='GETCATREPORTS' then
+         v_str:=splitstr(p_ParVal,'~');
+      select  T.REPORT_QUERY into v_res from TBL_DS_REPORTDTL t where t.menu_id=v_str(1);
+
+        if  INSTR(UPPER(v_res), 'JJID') > 0  then
+         v_res:=replace(v_res,'jjid',v_str(2));
+         end if;
+           if  INSTR(UPPER(v_res), 'UNXID') > 0  then
+         v_res:=replace(v_res,'unxid',v_str(3));
+         end if;
+
+          if  INSTR(UPPER(v_res), 'STID') > 0  then
+         v_res:=replace(v_res,'stid',v_str(4));
+         end if;
+
+            if  INSTR(UPPER(v_res), 'EMPXID') > 0  then
+         v_res:=replace(v_res,'empxid',v_str(5));
+         end if;
+
+      OPEN QRY_RESULT FOR
+      v_res ;
+
+
+  elsif p_pageVal1='GETSCHDULE' then
+   if p_ParVal='1' then
+      open QRY_RESULT for
+      select t.req_id,t.customer_id from TBL_DOORSTEP_REQ_DTL t where t.req_status=4 and t.assign_emp=p_pageVal2
+      and t.req_id not in (select p.req_id from TBL_DOORSTEP_CTRL p);
+
+      elsif p_ParVal='2' then
+         open QRY_RESULT for
+        select t.dep_emp||'~'||t.br_id,t.req_id from TBL_DOORSTEP_CTRL t where t.req_status=1 and t.bh_code=p_pageVal2;
+ elsif p_ParVal='3' then
+
+       select t.branch_id into v_brid from employee_master t where  t.emp_code=p_pageVal2;
+ open QRY_RESULT for
+select r.req_id || '~' || r.req_id, r.req_id
+  from mana0809.tbl_doorstep_req_dtl r,mana0809.employee_master e
+ where e.emp_code=r.assign_emp and (r.req_status = 5 or (r.sec_code is null and r.req_status = 4)) and e.branch_id=v_brid;
+end if;
+elsif p_pageVal1='GETSCHEDDATA' then
+
+      open QRY_RESULT for
+      select t.req_id,t.customer_id,c.cust_name,t.schedule_time,c.mob_no,t.address1||'-'||t.address2 from TBL_DOORSTEP_REQ_DTL t,tbl_doorstep_cust_mst c
+ where t.customer_id=c.cust_id and t.req_id=p_ParVal;
+ elsif p_pageVal1='GETSCHAHDATA' then
+   v_str:=splitstr(p_ParVal,'~');
+ select count(*) into v_cnt from mana0809.HRM_MS260 t
+ where  t.tfr_empcode=v_str(1) and t.branch_id=v_str(2) and t.status_id=1 and trunc(t.eff_dt)=trunc(sysdate);
+
+      open QRY_RESULT for
+      select t.emp_code,t.emp_name,t.branch_id,b.branch_name,decode(v_cnt,0,'No',1,'Yes') pstat from employee_master t,branch_master b where t.branch_id=b.branch_id and t.emp_code=v_str(1);
+ elsif p_pageVal1='UPDATEBHREQ' then
+    v_str:=splitstr(p_ParVal,'~');
+
+    v_sch_dt :=to_date(v_str(2), 'DD/MM/YYYY HH:MI:SS AM');
+    select t.branch_id into  v_brid from employee_master t where t.emp_code=v_str(4);
+
+    insert into tbl_doorstep_ctrl(req_id,
+                                req_dt,
+                                br_id,
+                                bh_code,
+                                bh_dep_time,
+                                bh_com,
+                                req_status)values(v_str(1),sysdate,v_brid,v_str(4),v_sch_dt,v_str(3),0);
+                                commit;
+      open QRY_RESULT for
+       select 111 from dual;
+
+  elsif p_pageVal1='doorweblead' then
+      v_str := splitstr(p_ParVal,'!');
+         for i in 1..v_str.Count-1
+         loop
+          v_res1 := splitstr(v_str(i),'^');
+             select nvl(max(t.slno)+1,1) into SlNo1 from DOORSTEP_WEB_LEAD t;
+
+
+          select count(*) into  v_cnt from DOORSTEP_WEB_LEAD t where t.mobile_no=v_res1(2);
+
+          if v_cnt=0 then
+
+
+          insert into DOORSTEP_WEB_LEAD(SLNO,
+                                        CUST_NAME,
+                                        MOBILE_NO,
+                                        EMAIL,
+                                        TRA_DT,
+                                        PINCODE,
+                                        STATE,
+                                        CUS_LANG)values(SlNo1,v_res1(1),v_res1(2),v_res1(3),v_res1(4),v_res1(5),v_res1(6),v_res1(7));
+
+
+
+      end if;
+
+        end loop;
+
+        commit;
+
+     open QRY_RESULT for
+       select 111 from dual;
+
+       elsif p_pageVal1='UPDATEAHCNFRM' then
+    v_str:=splitstr(p_ParVal,'~');
+    if v_str(6)='2' then
+      update TBL_DOORSTEP_CTRL t set t.ah_code=v_str(7),t.ah_upd_dt=sysdate,t.ah_com=v_str(4),t.req_status=4 where t.req_id=v_str(1) ;
+       else
+   if v_str(3)='-1' then
+
+    update TBL_DOORSTEP_CTRL t set t.ah_code=v_str(7),t.ah_upd_dt=sysdate,t.dep_emp=v_str(3),t.dep_stat=0,t.ah_com=v_str(4),t.req_status=1 where t.req_id=v_str(1) ;
+  else
+
+ update TBL_DOORSTEP_CTRL t set t.ah_code=v_str(7),t.ah_upd_dt=sysdate,t.dep_emp=v_str(3),t.dep_stat=1,t.ah_com=v_str(4),t.req_status=1 where t.req_id=v_str(1) ;
+   end if;
+    end if;
+    commit;
+
+   select t.bh_dep_time into v_sch_dt from TBL_DOORSTEP_CTRL t where t.req_id=v_str(1);
+      open QRY_RESULT for
+       select v_sch_dt, min(t.mobile_no) from mana0809.EMP_GREETING_MASTER t where t.emp_code = v_str(3);
+
+ elsif p_pageVal1='UPDATEBHCON' then
+    v_str:=splitstr(p_ParVal,'~');
+    if v_str(2)='1' then
+   update TBL_DOORSTEP_CTRL t set t.req_status=2,t.bh_apr_dt=sysdate where t.req_id=v_str(1);
+   else
+      update TBL_DOORSTEP_CTRL t set t.req_status=0,t.bh_apr_dt=sysdate where t.req_id=v_str(1);
+      end if;
+   commit;
+       open QRY_RESULT for
+       select 111 from dual;
+
+
+ elsif p_pageVal1='UPDATELOAN' then
+         v_str:=splitstr(p_ParVal,'~');
+
+               select t.schedule_time,t.assign_emp into  v_sch_dt,v_empcode from tbl_doorstep_req_dtl t where t.req_id=v_str(1);
+       if(v_empcode <> v_str(3)) then
+
+
+
+       select t.branch_id into v_brid from employee_master t where  t.emp_code=v_empcode;
+       select p.mob_no into v_mobno from tbl_doorstep_req_dtl d,tbl_doorstep_cust_mst p where d.customer_id=p.cust_id and d.req_id=v_str(1);
+
+       select count(*) into v_cnt from mana0809.pledge_master p, mana0809.customer c where p.cust_id=c.cust_id and substr(c.phone2, -10)=v_mobno and p.tra_dt=trunc(sysdate)  and p.pledge_no=v_str(2);
+       if v_cnt > 0 then
+
+        insert into tbl_doorstep_ctrl(req_id,
+                                req_dt,
+                                br_id,
+                                bh_code,
+                                req_status,pledge_no,bh_fin_dt)values(v_str(1),v_sch_dt,v_brid,v_empcode,3,v_str(2),sysdate);
+                                commit;
+
+    open QRY_RESULT for
+       select 111 from dual;
+   else
+      open QRY_RESULT for
+       select 333 from dual;
+     end if;
+     else
+         open QRY_RESULT for
+       select 444 from dual;
+     end if;
+   elsif p_pageVal1='nongoldxupld' then
+      v_str := splitstr(p_ParVal,'!');
+         for i in 1..v_str.Count-1
+         loop
+          v_res1 := splitstr(v_str(i),'^');
+             select nvl(max(t.Slno)+1,1) into SlNo1 from NG_LOAN_CUS_XUPLOAD t;
+
+
+          select count(*) into  v_cnt from NG_LOAN_CUS_XUPLOAD t where t.Mobile_No=v_res1(9);
+
+          if v_cnt=0 then
+
+
+          insert into NG_LOAN_CUS_XUPLOAD(SLNO,CUST_NAME,MOBILE_NO,CREATE_DATE,BRANCH_ID,BRANCH_NAME,REGION_NAME,AREA,ZONE_ID,STATE_NAME,CUST_TYPE,PRODUCT_INTEREST,LEAD_BUCKET,APPOINT_DATE,CALLCTR_CMNT,STATUS)
+         values(SlNo1,v_res1(10),v_res1(9),v_res1(2),v_res1(3),v_res1(4),v_res1(5),v_res1(6),v_res1(7),v_res1(8),v_res1(11),v_res1(12),v_res1(13),v_res1(14),v_res1(15),0);
+
+
+
+
+       end if;
+
+        end loop;
+
+        commit;
+
+     open QRY_RESULT for
+       select 111 from dual;
+     elsif p_pageVal1='festupld' then
+            v_str :=splitstr(p_ParVal,'!');
+             for i in 1..v_str.Count-1
+               loop
+                 v_res1 :=splitstr(v_str(i),'^');
+                 select nvl(max(t.FEST_ID)+1,1) into SlNo1 from tbl_festivals t ;
+                 if SlNo1 is null then
+        SlNo1:=1;
+        end if;
+           select count(*) into v_cnt from tbl_festivals s where s.fest_id=SlNo1;
+                 if v_cnt=0 then
+                   insert into tbl_festivals h(h.state_id,h.festival_name,h.fest_dt,h.fest_id,h.entered_dt)
+         values(v_res1(1),v_res1(2),v_res1(3),SlNo1,sysdate);
+
+
+                   end if;
+                   end loop;
+                 commit;
+
+     open QRY_RESULT for
+       select 111 from dual;
+
+       elsif p_pageVal1='GETDIGITALLIST'
+        then    v_str:=splitstr(p_ParVal,'~');
+   if v_str(1)='1' then
+
+      open QRY_RESULT for
+      select t.item_id,t.item_name from TBL_DIGITAL_ITEMS t
+      where t.parent_id=v_str(2)
+      order by t.item_name;
+
+
+      elsif v_str(1)='2' then
+         open QRY_RESULT for
+       select distinct t.col_lang_id,t.col_lang from tbl_local_language t order by t.col_lang;
+end if;
+  ------------------113465---------------------
+  elsif p_pageVal1 = 'GET_PAPERLESS_NOTE' then
+
+ select count(distinct d.dep_head) into cnt_head
+   from mana0809.department_mst d, mana0809.employee_master e
+  where e.department_id = d.dep_id
+    and e.status_id = 1
+    and d.dep_head = p_pageVal2;
+
+ if (cnt_head = 0) then
+
+   open QRY_RESULT for
+     select t.note_id
+       from TBL_PWA_NOTE_MST t
+      where t.status_id in (7, 0, 5)
+        and t.created_by = p_pageVal2
+        and t.doc_type not in (2,22)
+        and t.branch_id=0
+        and to_date(t.created_date) > to_date('12-OCT-2022')
+        and not exists (select p.note_id
+               from tbl_paperless_status_dtl p
+              where t.note_id = p.note_id
+                and p.select_option = 1);
+
+ else
+   open QRY_RESULT for
+     select t.note_id, t.creater_name, e.department_id
+       from mana0809.TBL_PWA_NOTE_MST t, mana0809.employee_master e
+      where t.user_dept = e.department_id
+        and t.status_id in (7, 0, 5)
+        --and t.doc_type <> 2
+        and t.doc_type not in (2,22)
+        and t.branch_id=0
+        and e.emp_code = p_pageVal2
+        and to_date(t.created_date) > to_date('12-OCT-2022')
+        and not exists (select p.note_id
+               from mana0809.tbl_paperless_status_dtl p
+              where t.note_id = p.note_id
+                and p.select_option = 1);
+
+ end if;
+  elsif p_pageVal1 = 'PSD' then
+
+    open qry_result for
+      select t.creater_name,
+             t.created_by,
+             t.created_date,
+             t.subject,
+             d.proposed_content,
+             f.approver_name,
+             f.updated_date,
+             f.remarks
+        from tbl_pwa_note_mst t, DMS.TBL_PWA_CONTENT d,tbl_pwa_note_approvers f
+       where t.Note_Id = p_pageVal2
+         and f.para_seq='F'
+         and t.note_id = d.note_id
+         and t.note_id=f.note_id;
+
+  elsif p_pageVal1 = 'PSD_Insert' then
+    v_str := splitstr(p_pageVal2, '~');
+select distinct d.dep_head into dpt_head
+      from department_mst d, employee_master e
+     where e.emp_code = v_str(4)
+       and e.department_id = d.dep_id
+       and e.status_id = 1;
+
+   /* insert into tbl_paperless_status_dtl p
+      (p.note_id, p.select_option, p.Updated_By, p.remark, p.updated_date)
+    values
+      (v_str(1), v_str(2), v_str(4), v_str(3), sysdate);*/
+      update tbl_paperless_status_dtl p set p.select_option=v_str(2),p.remark=v_str(3),p.updated_by= v_str(4),p.updated_date=sysdate where p.note_id=v_str(1);
+
+      select count(1) into cntt
+       from mana0809.employee_master e, mana0809.TBL_PWA_NOTE_MST t,TBL_PWA_NOTE_APPROVERS a
+       where t.status_id in (0,7,5)
+      and a.para_seq='F'
+      and a.note_id=t.note_id
+       --and t.doc_type <> 2
+       and t.doc_type not in (2,22)
+        and t.branch_id=0
+       and e.emp_code=v_str(4)
+       and e.emp_code=t.created_by
+       and e.status_id=1
+      and to_date(sysdate) - to_date(a.updated_date) > 15
+       and exists
+       (select p.note_id  from tbl_paperless_status_dtl p where t.note_id=p.note_id and p.select_option in (0,2,3) and p.created_by=v_str(4));
+       if cntt = 0 then
+
+      update TBL_MA_COMMON_ALERT t set t.status=0 where t.module_id=141 and t.emp_code= v_str(4);
+         end if;
+
+select count(1) into cntt2
+       from mana0809.employee_master e, department_mst d
+       where e.emp_code=d.dep_head
+       and d.dep_id in(select d.dep_id
+       from mana0809.employee_master e, mana0809.TBL_PWA_NOTE_MST t,TBL_PWA_NOTE_APPROVERS a, department_mst d
+       where t.status_id in (0,7,5)
+      and a.para_seq='F'
+      and a.note_id=t.note_id
+      -- and t.doc_type <> 2
+       and t.doc_type not in (2,22)
+        and t.branch_id=0
+        and e.department_id=d.dep_id
+       and e.emp_code=v_str(4)
+
+       and e.emp_code=t.created_by
+       and e.status_id=1
+      and to_date(sysdate) - to_date(a.updated_date) > 15
+       and exists
+       (select p.note_id  from tbl_paperless_status_dtl p where t.note_id=p.note_id and p.select_option in (0,2,3) and p.created_by=v_str(4)));
+
+        if cntt2 = 0 then
+         update TBL_MA_COMMON_ALERT t set t.status=0 where t.module_id=141 and t.emp_code= dpt_head;
+         end if;
+    commit;
+
+    open QRY_RESULT for
+      select 111 from dual;
+
+  elsif p_pageVal1 = 'paperless_status' then
+    -- select count(e.emp_code) into v_cnt from employee_master e where e.emp_code in ('376292','373706','373826');
+    select count(*)
+      into cnt
+      from form_accessibility t
+     where t.emp_id = p_pageVal2
+       and t.form_id = 7541;
+    if (cnt > 0) then
+      OPEN QRY_RESULT FOR
+
+        select 111 from dual;
+    else
+      OPEN QRY_RESULT FOR
+
+        select 222 from dual;
+    end if;
+    ------------------113465---------------------
+------------------113164---------------------
+ elsif p_pageVal1= 'LmsNonConvrtbl' then
+    select count(p.emp_code) into v_cnt from employee_master p where p.department_id = 643 and p.emp_code=p_ParVal;
+    if v_cnt > 0 then
+       OPEN QRY_RESULT FOR
+
+       select 111 from dual;
+      else
+        OPEN QRY_RESULT FOR
+
+       select 222 from dual;
+      end if;
+------------------113164---------------------
+
+  ------------------113118---------------------
+   elsif p_pageVal1 = 'poissuedactivity' then
+         v_str := splitstr(p_ParVal, '~');
+     open qry_result for
+     select f.fzm as "ZONE",
+       b.reg_name as "REGION NAME",
+       b.area_name as "AREA NAME",
+       b.BRANCH_NAME as "BRANCH NAME",
+       b.BRANCH_ID  as "BRANCH ID",
+       p.po_id  as "PO NUMBER",
+       to_char(p.po_date,'DD-MON-YYYY') as "PO ENTER DATE",
+       abs(to_date(m.enter_date) - to_date(p.po_date))as "LAG DAYS",
+       decode (p.status_id, 0,'Request',
+                            1,'Approve',
+                            2,'cancelled',
+                            3,'Assign',
+                            4,'Delivery',
+                            5,'Delivery Completed',
+                            6,'PO closed',
+                            99,'Marketing Activity Blocked')  as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and m.enter_date between v_str(1) and v_str(2);
+   ----------branch po issued activity report------
+   elsif p_pageVal1 = 'poissuedactivities' then
+         v_str := splitstr(p_ParVal, '~');
+  if(v_str(4) = 10) then
+  open qry_result for
+   select f.fzm as "ZONE",
+       b.reg_name as "REGION NAME",
+       b.area_name as "AREA NAME",
+       b.BRANCH_NAME as "BRANCH NAME",
+       b.BRANCH_ID  as "BRANCH ID",
+       p.po_id  as "PO NUMBER",
+       to_char(p.po_date,'DD-MON-YYYY') as "PO ENTER DATE",
+       abs(to_date(m.enter_date) - to_date(p.po_date))as "LAG DAYS",
+       decode (p.status_id, 0,'Request',
+                            1,'Approve',
+                            2,'cancelled',
+                            3,'Assign',
+                            4,'Delivery',
+                            5,'Delivery Completed',
+                            6,'PO closed',
+                            99,'Marketing Activity Blocked')  as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.BRANCH_ID=v_str(3)
+   and m.enter_date between v_str(1) and v_str(2);
+
+  elsif v_str(4) = 136 then
+     open qry_result for
+   select f.fzm as "ZONE",
+       b.reg_name as "REGION NAME",
+       b.area_name as "AREA NAME",
+       b.BRANCH_NAME as "BRANCH NAME",
+       b.BRANCH_ID  as "BRANCH ID",
+       p.po_id  as "PO NUMBER",
+       to_char(p.po_date,'DD-MON-YYYY') as "PO ENTER DATE",
+       abs(to_date(m.enter_date) - to_date(p.po_date))as "LAG DAYS",
+       decode (p.status_id, 0,'Request',
+                            1,'Approve',
+                            2,'cancelled',
+                            3,'Assign',
+                            4,'Delivery',
+                            5,'Delivery Completed',
+                            6,'PO closed',
+                            99,'Marketing Activity Blocked')  as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.area_id=v_str(3)
+   and m.enter_date between v_str(1) and v_str(2);
+   -----------reg po issued activity report------
+  elsif v_str(4) = 199 then
+     open qry_result for
+   select f.fzm as "ZONE",
+       b.reg_name as "REGION NAME",
+       b.area_name as "AREA NAME",
+       b.BRANCH_NAME as "BRANCH NAME",
+       b.BRANCH_ID  as "BRANCH ID",
+       p.po_id  as "PO NUMBER",
+       to_char(p.po_date,'DD-MON-YYYY') as "PO ENTER DATE",
+       abs(to_date(m.enter_date) - to_date(p.po_date))as "LAG DAYS",
+       decode (p.status_id, 0,'Request',
+                            1,'Approve',
+                            2,'cancelled',
+                            3,'Assign',
+                            4,'Delivery',
+                            5,'Delivery Completed',
+                            6,'PO closed',
+                            99,'Marketing Activity Blocked')  as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.reg_id=v_str(3)
+   and m.enter_date between v_str(1) and v_str(2);
+   -----------fzm po issued activity report------
+    elsif v_str(4) = -36 then
+       open qry_result for
+   select f.fzm as "ZONE",
+       b.reg_name as "REGION NAME",
+       b.area_name as "AREA NAME",
+       b.BRANCH_NAME as "BRANCH NAME",
+       b.BRANCH_ID  as "BRANCH ID",
+       p.po_id  as "PO NUMBER",
+       to_char(p.po_date,'DD-MON-YYYY') as "PO ENTER DATE",
+       abs(to_date(m.enter_date) - to_date(p.po_date))as "LAG DAYS",
+       decode (p.status_id, 0,'Request',
+                            1,'Approve',
+                            2,'cancelled',
+                            3,'Assign',
+                            4,'Delivery',
+                            5,'Delivery Completed',
+                            6,'PO closed',
+                            99,'Marketing Activity Blocked')  as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and f.fzm_id=v_str(3)
+   and m.enter_date between v_str(1) and v_str(2);
+   end if;
+
+   --------po issued activity export to excel-----
+   elsif p_pageVal1 = 'poissuedexport' then
+         v_str := splitstr(p_ParVal, '~');
+         if v_str(3) = 576 then
+     open qry_result for
+   select 'ZONE',
+       'REGION NAME',
+       'AREA NAME',
+       'BRANCH NAME',
+       'BRANCH ID',
+       'PO NUMBER',
+       'PO ENTER DATE',
+       'LAG DAYS',
+       'STATUS'
+  from dual
+union all
+select to_char(f.fzm) as "ZONE",
+       to_char(b.reg_name) as "REGION NAME",
+       to_char(b.area_name) as "AREA NAME",
+       to_char(b.BRANCH_NAME) as "BRANCH NAME",
+       to_char(b.BRANCH_ID) as "BRANCH ID",
+       to_char(p.po_id) as "PO NUMBER",
+       to_char(p.po_date) "PO ENTER DATE",
+       to_char(abs(to_date(m.enter_date) - to_date(p.po_date))) as "LAG DAYS",
+       to_char(decode(p.status_id,
+              0,
+              'Request',
+              1,
+              'Approve',
+              2,
+              'cancelled',
+              3,
+              'Assign',
+              4,
+              'Delivery',
+              5,
+              'Delivery Completed',
+              6,
+              'PO closed',
+              99,'Marketing Activity Blocked')) as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+and m.enter_date between v_str(1) and v_str(2);
+
+  elsif v_str(4) = 10 then
+     open qry_result for
+select 'ZONE',
+       'REGION NAME',
+       'AREA NAME',
+       'BRANCH NAME',
+       'BRANCH ID',
+       'PO NUMBER',
+       'PO ENTER DATE',
+       'LAG DAYS',
+       'STATUS'
+  from dual
+union all
+select to_char(f.fzm) as "ZONE",
+       to_char(b.reg_name) as "REGION NAME",
+       to_char(b.area_name) as "AREA NAME",
+       to_char(b.BRANCH_NAME) as "BRANCH NAME",
+       to_char(b.BRANCH_ID) as "BRANCH ID",
+       to_char(p.po_id) as "PO NUMBER",
+       to_char(p.po_date) "PO ENTER DATE",
+       to_char(abs(to_date(m.enter_date) - to_date(p.po_date))) as "LAG DAYS",
+       to_char(decode(p.status_id,
+              0,
+              'Request',
+              1,
+              'Approve',
+              2,
+              'cancelled',
+              3,
+              'Assign',
+              4,
+              'Delivery',
+              5,
+              'Delivery Completed',
+              6,
+              'PO closed',
+              99,'Marketing Activity Blocked')) as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.BRANCH_ID=v_str(3)
+and m.enter_date between v_str(1) and v_str(2);
+
+
+ elsif v_str(4) = 136 then
+     open qry_result for
+
+     select 'ZONE',
+       'REGION NAME',
+       'AREA NAME',
+       'BRANCH NAME',
+       'BRANCH ID',
+       'PO NUMBER',
+       'PO ENTER DATE',
+       'LAG DAYS',
+       'STATUS'
+  from dual
+union all
+select to_char(f.fzm) as "ZONE",
+       to_char(b.reg_name) as "REGION NAME",
+       to_char(b.area_name) as "AREA NAME",
+       to_char(b.BRANCH_NAME) as "BRANCH NAME",
+       to_char(b.BRANCH_ID) as "BRANCH ID",
+       to_char(p.po_id) as "PO NUMBER",
+       to_char(p.po_date) "PO ENTER DATE",
+       to_char(abs(to_date(m.enter_date) - to_date(p.po_date))) as "LAG DAYS",
+       to_char(decode(p.status_id,
+              0,
+              'Request',
+              1,
+              'Approve',
+              2,
+              'cancelled',
+              3,
+              'Assign',
+              4,
+              'Delivery',
+              5,
+              'Delivery Completed',
+              6,
+              'PO closed',
+              99,'Marketing Activity Blocked')) as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.area_id=v_str(3)
+and m.enter_date between v_str(1) and v_str(2);
+
+
+ elsif v_str(4) = 199 then
+     open qry_result for
+
+     select 'ZONE',
+       'REGION NAME',
+       'AREA NAME',
+       'BRANCH NAME',
+       'BRANCH ID',
+       'PO NUMBER',
+       'PO ENTER DATE',
+       'LAG DAYS',
+       'STATUS'
+  from dual
+union all
+select to_char(f.fzm) as "ZONE",
+       to_char(b.reg_name) as "REGION NAME",
+       to_char(b.area_name) as "AREA NAME",
+       to_char(b.BRANCH_NAME) as "BRANCH NAME",
+       to_char(b.BRANCH_ID) as "BRANCH ID",
+       to_char(p.po_id) as "PO NUMBER",
+       to_char(p.po_date) "PO ENTER DATE",
+       to_char(abs(to_date(m.enter_date) - to_date(p.po_date))) as "LAG DAYS",
+       to_char(decode(p.status_id,
+              0,
+              'Request',
+              1,
+              'Approve',
+              2,
+              'cancelled',
+              3,
+              'Assign',
+              4,
+              'Delivery',
+              5,
+              'Delivery Completed',
+              6,
+              'PO closed',
+              99,'Marketing Activity Blocked')) as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and b.reg_id=v_str(3)
+and m.enter_date between v_str(1) and v_str(2);
+
+
+elsif v_str(4) = -36 then
+     open qry_result for
+
+     select 'ZONE',
+       'REGION NAME',
+       'AREA NAME',
+       'BRANCH NAME',
+       'BRANCH ID',
+       'PO NUMBER',
+       'PO ENTER DATE',
+       'LAG DAYS',
+       'STATUS'
+  from dual
+union all
+select to_char(f.fzm) as "ZONE",
+       to_char(b.reg_name) as "REGION NAME",
+       to_char(b.area_name) as "AREA NAME",
+       to_char(b.BRANCH_NAME) as "BRANCH NAME",
+       to_char(b.BRANCH_ID) as "BRANCH ID",
+       to_char(p.po_id) as "PO NUMBER",
+       to_char(p.po_date) "PO ENTER DATE",
+       to_char(abs(to_date(m.enter_date) - to_date(p.po_date))) as "LAG DAYS",
+       to_char(decode(p.status_id,
+              0,
+              'Request',
+              1,
+              'Approve',
+              2,
+              'cancelled',
+              3,
+              'Assign',
+              4,
+              'Delivery',
+              5,
+              'Delivery Completed',
+              6,
+              'PO closed',
+              99,'Marketing Activity Blocked')) as "STATUS"
+  from tbl_marketing_activity_new m,
+       tbl_po_master              p,
+       mana0809.branch_dtl_new    b,
+       mana0809.tbl_fzm_master    f
+ where m.actvty_id = p.act_id
+   and m.brid = b.BRANCH_ID
+   and p.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and f.fzm_id=v_str(3)
+and m.enter_date between v_str(1) and v_str(2);
+end if;
+
+  ----------end--------
+
+
+elsif p_pageVal1='ADDDIGITALITEM' then
+        v_str:=splitstr(p_ParVal,'~');
+
+        if  v_str(3) = 1 then -- Item
+             select count(*)
+             into   v_cnt1
+             from   TBL_DIGITAL_ITEMS t
+             where  t.item_name like '%' || v_str(1) || '%';
+
+             if v_cnt1 = 0 then
+                 select max(t.item_id)+1 into v_cnt from TBL_DIGITAL_ITEMS t;
+                 insert into TBL_DIGITAL_ITEMS t (ITEM_ID, ITEM_NAME,PARENT_ID) values(v_cnt,v_str(1),v_str(2));
+
+              open QRY_RESULT for
+                   select 111 from dual;
+              else
+              open QRY_RESULT for
+                   select 333 from dual;
+             end if;
+
+        else -- Parent
+             select count(*)
+             into   v_cnt1
+             from   Tbl_Digital_Items_Parent t
+             where  t.parent_name like '%' || v_str(1) || '%';
+
+             if v_cnt1 = 0 then
+                 select max(t.parent_id)+1 into v_cnt from Tbl_Digital_Items_Parent t;
+                 insert into Tbl_Digital_Items_Parent t (PARENT_ID,PARENT_NAME) values(v_cnt,v_str(1));
+
+                 open QRY_RESULT for
+                 select 111 from dual;
+             else
+                 open QRY_RESULT for
+                 select 333 from dual;
+             end if;
+
+
+        end if;
+
+    elsif p_pageVal1='prdetails' then
+   open QRY_RESULT for
+   select t.note_id from TBL_PWA_NOTE_MST t where t.status_id in (1,2) and t.doc_type=10;
+  elsif p_pageVal1='NGA' then
+
+    open qry_result for
+  select t.creater_name,t.created_by,t.created_date,t.pr_id,t.cost,t.subject from tbl_pwa_note_mst t where t.note_id=p_pageVal2;
+
+  elsif p_pageVal1='NGA2' then
+    v_str:=splitstr(p_pageVal2,'~');
+  update tbl_pwa_note_mst t set t.cost =v_str(6) where t.note_id = v_str(7);
+  commit;
+   insert into tbl_negotiated_amount_dtl
+      (
+       note_id,
+       updated_date,
+       updated_by,
+       NEW_COST,
+       OLD_COST
+        )
+    values
+      (v_str(7),
+       SYSDATE,
+       p_ParVal,
+       v_str(6),
+       v_str(5)
+       );
+       commit;
+       open QRY_RESULT for
+select 111 from dual;
+
+
+ elsif p_pageVal1='GETDIGITALIMG' then
+          v_str:=splitstr(p_ParVal,'~');
+  open QRY_RESULT for
+      select t.advimage,nvl(t.colorcode,'#FFFFFF')colorcode,nvl(t.position,'LB')as position  from DMS.TBL_DIGITAL_IMG  t where t.image_id=v_str(1) and t.langid=v_str(2);
+
+
+      elsif p_pageVal1='CONFIRMIMGDOWNLOAD' then
+          v_str:=splitstr(p_ParVal,'~');
+
+          insert into TBL_DIGITAL_DOWNLOADS(EMP_CODE,
+                                            ITEM_ID,
+                                            LANG_ID,
+                                            DOWN_DATE) values (v_str(3),v_str(1),v_str(2),sysdate);
+                                            commit;
+
+  open QRY_RESULT for
+    select 111 from dual;
+  elsif  p_pageval1='GETSTATELIST' then
+      if p_ParVal='1' then
+            open QRY_RESULT for
+              select t.state_id,t.state_name from state_master t;
+               end if;
+         elsif p_pageval1='STATEMAPPING' then
+
+              select count(1) into empcnt from employee_master e where e.emp_code=p_ParVal and e.status_id=1 and e.post_id=10;
+
+               if (empcnt=1) then
+                  -- if p_ParVal='1' then
+                   open QRY_RESULT for
+                   select t.state_id,t.state_name from TBL_STATE_MAP_MST t;
+                  -- end if;
+               end if;
+
+                   elsif p_pageval1='DSTMAPPING' then
+                   open QRY_RESULT for
+                   select t.district_id,t.district_name from tbl_district_map_mst t where t.state_id=p_ParVal order by t.district_name ;
+                   elsif p_pageval1='SUBDSTMAPPING' then
+                   open QRY_RESULT for
+                   select t.sub_district_id,t.sub_district_name from tbl_sub_district_map_mst t where t.district_id=p_ParVal ;
+
+         elsif p_pageval1='DIS' then
+                     v_str:=splitstr(p_ParVal,'~');
+                     select count(*) into v_cnt from TBL_BRANCH_MAPPING_MST d where d.entered_by=v_str(1) and d.branch_id=v_str(2) and d.status=0;
+                 if v_cnt=0 then
+                   open QRY_RESULT for
+                   select 111 from dual;
+                   else
+                     open QRY_RESULT for
+                     select 333 from dual;
+                     end if;
+
+         elsif p_pageval1='BRSELECT' then
+                  -- if p_ParVal='1' then
+                   open QRY_RESULT for
+                   select b.BRANCH_ID, b.BRANCH_NAME from TBL_BRANCH_MAPPING_MST t, branch_dtl_new b where t.branch_id = b.BRANCH_ID and t.branch_id in(select b1.BRANCH_ID from branch_dtl_new b1 where b1.area_id in (select b2.area_id from branch_dtl_new b2, employee_master e where b2.BRANCH_ID = e.branch_id and e.emp_code = p_ParVal and e.status_id = 1 and e.post_id = 136)) and t.status = 0;
+                  -- end if;
+                 elsif p_pageval1='LOCALTYPE' then
+                 if p_ParVal='1' then
+                   open QRY_RESULT for
+                   select t.local_body_type_id,t.local_body_type from tbl_localbody_type_map_mst t;
+                   end if;
+                   elsif p_pageval1='DISPDTL' then
+                   open QRY_RESULT for
+                   select s.state_name, c.district_name, f.sub_district_name, l.local_body_type, n.local_body_name, t.pin_code from TBL_BRANCH_MAPPING_MST t, tbl_state_map_mst s, tbl_district_map_mst c, tbl_sub_district_map_mst f, tbl_localbody_type_map_mst l, tbl_localbody_name_map_mst n where t.state_id = s.state_id and t.district_id = c.district_id and t.subdistrict_id = f.sub_district_id and t.localbodytype_id = l.local_body_type_id and t.localbodyname_id = n.local_body_id and t.status = 0 and t.branch_id = p_ParVal;
+                   elsif p_pageval1='DISPEXDTL' then
+                   open QRY_RESULT for
+                   select distinct g.state_name,
+       d.district_name,
+       s.pincode
+  from
+       mana0809.branch_master s,mana0809.state_master g, mana0809.district_master d
+ where  s.state_id=g.state_id
+   and s.district_id=d.district_id
+   and s.branch_id = p_ParVal;
+elsif p_pageval1='DISPEXDTLBR' then
+                   open QRY_RESULT for
+select distinct g.state_name,
+       d.district_name,
+       s.pincode
+  from
+       mana0809.branch_master s,mana0809.state_master g, mana0809.district_master d
+ where  s.state_id=g.state_id
+   and s.district_id=d.district_id
+   and s.branch_id = p_ParVal;
+
+                   elsif p_pageval1='LCLBDYNAME' then
+                     v_str:=splitstr(p_ParVal,'^');
+                   open QRY_RESULT for
+                   select t.local_body_id, t.local_body_name from tbl_localbody_name_map_mst t where t.local_body_type_id=v_str(1) and t.state_id=v_str(2) order by t.local_body_name ;
+
+                   elsif p_pageVal1='Apprvconfirm' then
+         v_str:=splitstr(p_ParVal,'^');
+          update TBL_BRANCH_MAPPING_MST t set t.status=1,t.remarks=v_str(2) where t.branch_id=v_str(1) and t.status=0;
+      commit;
+      open QRY_RESULT for
+      select 111 from dual;
+      elsif p_pageVal1='BranchMappingReject' then
+         v_str:=splitstr(p_ParVal,'^');
+          update TBL_BRANCH_MAPPING_MST t set t.status=2 where t.branch_id=v_str(1) and t.status=0;
+      commit;
+      open QRY_RESULT for
+      select 111 from dual;
+
+      elsif p_pageVal1='brmapping' then
+         v_str:=splitstr(p_ParVal,'^');
+        select count(*) into v_cnt from TBL_BRANCH_MAPPING_MST d where d.entered_by=v_str(7) and d.branch_id=v_str(8) and d.status=0;
+        if v_cnt=0 then
+          insert into TBL_BRANCH_MAPPING_MST t
+  (t.state_id,
+   t.district_id,
+   t.subdistrict_id,
+   t.localbodytype_id,
+   t.localbodyname_id,
+   t.pin_code,
+   t.status,
+   t.entered_by,
+   t.entered_dt,
+   t.branch_id)
+values
+  (v_str(1),
+   v_str(2),
+   v_str(3),
+   v_str(4),
+   v_str(5),
+   v_str(6),
+   0,
+   v_str(7),
+   sysdate,
+   v_str(8));
+
+      commit;
+      open QRY_RESULT for
+      select 111 from dual;
+      else
+        open QRY_RESULT for
+      select 333 from dual;
+      end if;
+       elsif p_pageVal1='CHECKCUSTOMER' then
+    v_str:=splitstr(p_ParVal,'~');
+   select count(*) into v_cnt from customer t where t.phone1=v_str(1) or t.phone2= v_str(1);
+   if v_cnt>0 then
+     open QRY_RESULT for
+             select k.name,k.cust_id,k.branch_id,t.date_of_birth,t.email_id from customer k, CUSTOMER_DETAIL t where k.cust_id=t.cust_id and (k.phone1=v_str(1) or k.phone2= v_str(1));
+             else
+               open QRY_RESULT for
+    select 333 from dual;
+     end if;
+   elsif p_pageVal1='Festconfirm' then
+v_str:=splitstr(p_ParVal,'^');
+select max(t.FEST_ID)+1 into v_cnt from tbl_festivals  t;
+      if v_cnt is null then
+        v_cnt:=1;
+        end if;
+        -- v_cnt=1
+insert into tbl_festivals(state_id,festival_name,fest_dt,fest_id,entered_dt)values(v_str(1),v_str(2),v_str(3),v_cnt,sysdate);
+open QRY_RESULT for
+    select 111 from dual;
+
+    elsif p_pageVal1='MAILCONTENT' then
+   v_str:=splitstr(p_ParVal,'^');
+  select count(*) into v_cnt
+  from TBL_MULTIWAY_LEAD t,
+       branch_master         b,
+       TBL_ONLINE_LANGUAGE   l,
+       state_master          s,
+       TBL_AUTO_MAIL_CONTENT M
+
+ where t.branch_id=b.branch_id
+   and b.state_id = s.state_id
+   and s.state_name = l.col_state_name
+   AND M.LANG_ID=L.COL_LANG_ID
+   and t.phone_no=v_str(2) and m.content_id= v_str(11);
+  if v_cnt > 0 then
+  open QRY_RESULT for
+   select m.content
+  from TBL_MULTIWAY_LEAD t,
+       branch_master         b,
+       TBL_ONLINE_LANGUAGE   l,
+       state_master          s,
+       TBL_AUTO_MAIL_CONTENT M
+
+ where  t.branch_id=b.branch_id
+   and b.state_id = s.state_id
+   and s.state_name = l.col_state_name
+   AND M.LANG_ID=L.COL_LANG_ID
+   and t.phone_no=v_str(2) and m.content_id= v_str(11);
+
+        else
+      open QRY_RESULT for
+          select m.content
+  from TBL_MULTIWAY_LEAD t,
+       TBL_AUTO_MAIL_CONTENT M
+ where t.phone_no=v_str(2) and m.content_id= v_str(11) and m.lang_id='EN';
+   end if;
+
+    /*elsif p_pageVal1='MAILCONTENT' then
+v_str:=splitstr(p_ParVal,'^');
+
+    OPEN QRY_RESULT FOR
+      select t.content from tbl_auto_mail_content t where t.content_id=v_str(11) and t.lang_id='EN';*/
+      elsif p_pageVal1='SMSCONTENT' then
+   v_str:=splitstr(p_ParVal,'^');
+  select count(*) into v_cnt
+  from TBL_MULTIWAY_LEAD t,
+       branch_master         b,
+       TBL_ONLINE_LANGUAGE   l,
+       state_master          s,
+       TBL_AUTO_MAIL_CONTENT M
+
+ where t.branch_id=b.branch_id
+   and b.state_id = s.state_id
+   and s.state_name = l.col_state_name
+   AND M.LANG_ID=L.COL_LANG_ID
+   and t.phone_no=v_str(2) and m.content_id= v_str(11);
+  if v_cnt > 0 then
+  open QRY_RESULT for
+   select m.content
+  from TBL_MULTIWAY_LEAD t,
+       branch_master         b,
+       TBL_ONLINE_LANGUAGE   l,
+       state_master          s,
+       TBL_AUTO_MAIL_CONTENT M
+
+ where  t.branch_id=b.branch_id
+   and b.state_id = s.state_id
+   and s.state_name = l.col_state_name
+   AND M.LANG_ID=L.COL_LANG_ID
+   and t.phone_no=v_str(2) and m.content_id= v_str(11);
+
+        else
+      open QRY_RESULT for
+          select m.content
+  from TBL_MULTIWAY_LEAD t,
+       TBL_AUTO_MAIL_CONTENT M
+ where t.phone_no=v_str(2) and m.content_id= v_str(11) and m.lang_id='EN';
+   end if;
+      /*elsif p_pageVal1='SMSCONTENT' then
+v_str:=splitstr(p_ParVal,'^');
+
+    OPEN QRY_RESULT FOR
+      select t.content from tbl_auto_mail_content t where t.content_id=v_str(11) and t.lang_id='EN'; */
+
+    elsif p_pageVal1='SMSconfirm' then
+v_str:=splitstr(p_ParVal,'^');
+select max(t.ID)+1 into v_cnt from TBL_INPUT_SMS_CONTENT  t where t.lang_id=v_str(1);
+      if v_cnt is null then
+        v_cnt:=1;
+        end if;
+        -- v_cnt=1
+insert into TBL_INPUT_SMS_CONTENT(ID,LANG_ID,CONTENT,SCHEDULE,SUBJECT,SMSDATE)values(v_cnt,v_str(1),v_str(3),v_str(5),v_str(2),to_date(v_str(4),'DD/MM/YYYY'));
+open QRY_RESULT for
+    select 111 from dual;
+
+    elsif p_pageVal1='custconfirm' then
+v_str:=splitstr(p_ParVal,'^');
+select count(*) into v_cnt from TBL_MULTIWAY_LEAD t where t.cust_id=v_str(3);
+      if v_cnt=0 then
+        select count(*) into v_cnt2 from TBL_MULTIWAY_LEAD h where h.phone_no=v_str(2);
+        if v_cnt2=0 then
+        insert into TBL_MULTIWAY_LEAD k(k.cust_name,k.phone_no,k.dob,k.mrt_sts,k.mrg_dt,k.mail_id,k.fb_id,k.cust_id,k.branch_id,k.entered_by,k.ENTERED_DT)
+        values(v_str(1),v_str(2),to_date(v_str(4),'DD/MM/YYYY'),v_str(5),v_str(6),v_str(7),v_str(8),v_str(3),v_str(10),v_str(9),sysdate);
+        open QRY_RESULT for
+    select 111 from dual;
+        else
+          open QRY_RESULT for
+    select 333 from dual;
+          end if;
+
+    else
+      open QRY_RESULT for
+    select 333 from dual;
+        end if;
+        -- v_cnt=1
+
+
+
+    elsif  p_pageval1='GETSTATEELIST' then
+      if p_ParVal='1' then
+            open QRY_RESULT for
+              select t.state_id,t.state_name from state_master t;
+               end if;
+     elsif  p_pageval1='EMPLOYEEDT' then
+       v_str:=splitstr(p_ParVal,'~');
+            open QRY_RESULT for
+              select b.DEPARTMENT_ID, b.POST_ID, b.branch_id, k.area_id, k.reg_id, g.fzm_id from mana0809.emp_master b, mana0809.tbl_fzm_master g, mana0809.branch_dtl_new k where b.BRANCH_ID = k.BRANCH_ID and k.reg_id = g.region_id and b.EMP_CODE = v_str(1) and b.STATUS_ID = 1 and k.BRANCH_ID >= 0;
+             elsif  p_pageval1='LoadFestival' then
+      v_str:=splitstr(p_ParVal,'^');
+              open QRY_RESULT for
+              select t.state_id,t.festival_name,t.fest_id from tbl_festivals t where t.state_id=v_str(1);
+
+
+      elsif p_pageVal1='Festdele' then
+            v_str:=splitstr(p_ParVal,'^');
+            delete from tbl_festivals where fest_id=v_str(2);
+            open QRY_RESULT for
+                 select 111 from dual;
+          ---------------------Referralentry
+        elsif p_pageVal1='baReferralentryUpload' then
+              v_str :=splitstr(p_ParVal,'!');
+              for i in 1..v_str.Count-1
+               loop
+                 v_res1 :=splitstr(v_str(i),'^');
+                 select nvl(max(t.TEMP_BAID)+1,1)
+                 into SlNo1
+                 from TBL_BA_REFER_BA t ;
+                 if SlNo1 is null then
+                    SlNo1:=1;
+                 end if;
+                 select count(*)
+                 into v_cnt
+                 from TBL_BA_REFER_BA s
+                 where s.TEMP_BAID=SlNo1;
+                 if v_cnt=0 then
+                    insert into TBL_BA_REFER_BA h
+                    (h.TEMP_BAID,
+                    h.REF_NAME,
+                    h.REF_PHON1,
+                    h.REF_PHON2,
+                    h.REF_PINCODE,
+                    h.REF_EMAIL,
+                    h.STATUS,
+                    h.APPLICATION,
+                    h.REMARK,
+                    h.REF_STATEID,
+                    h.ref_districtid,
+                    h.branchid,
+                    h.REF_EMPCODE_BY
+                    )
+                    values(SlNo1,
+                    v_res1(1),
+                    v_res1(2),
+                    v_res1(3),
+                    v_res1(4),
+                    v_res1(5),
+                    0,
+                    3,
+                    v_res1(9),
+                    (select STATE_ID
+                     from State_Master
+                     where STATE_NAME= UPPER(v_res1(6))),
+                    (select district_id
+                     from District_Master
+                     where  DISTRICT_NAME= UPPER(v_res1(7))),
+                    (select branch_id
+                     from Branch_Master
+                     where BRANCH_NAME= UPPER(v_res1(8))),
+                     p_pageVal2
+                     );
+                 end if;
+                 select nvl(max(t.LEAD_ID)+1,1)
+                 into SlNo2
+                 from tbl_lead_mst t ;
+
+                 if SlNo2 is null then
+                    SlNo2:=1;
+                 end if;
+                 select count(*)
+                 into v_cnt1
+                 from tbl_lead_mst  s
+                 where s.lead_id=SlNo2;
+                 if v_cnt1=0 then
+                     insert into tbl_lead_mst t
+                              (t.lead_id,
+                               t.cut_name,
+                               lead_source_cat,
+                               t.mobile_no,
+                               t.branch_id,
+                               t.lead_date,
+                               t.inserted_on
+                               )
+                        values
+                               (SlNo2,
+                                v_res1(1),
+                                33,
+                                v_res1(2),
+                                (select branch_id
+                                 from Branch_Master
+                                 where BRANCH_NAME= UPPER(v_res1(8))
+                                 ),
+                               to_date(Sysdate),
+                               to_date(sysdate)
+                               );
+
+
+                 end if;
+
+              end loop;
+     commit;
+     open QRY_RESULT for
+     select 111 from dual;
+   elsif p_pageVal1='GETCURRENTCRITERIA' then
+         OPEN     QRY_RESULT     FOR
+
+                 select t.* from TBL_BA_CATE_CONFIG_MST t where t.grade_num=p_ParVal and t.status_id=1;
+
+  elsif p_pageVal1='UPDATECRITERIA' then
+
+    v_str:=splitstr(p_ParVal,'~');
+
+    select count(*) into v_cnt from  TBL_BA_CATE_CONFIG_MST t where t.grade_num=v_str(1) and t.status_id=0;
+
+    if v_cnt = 0 then
+
+    insert into TBL_BA_CATE_CONFIG_MST(GRADE_NUM,
+                                       NCA_CNT,
+                                       FROM_DT,
+                                       WGT_BUSS_BA,
+                                       MIN_WGT_NCA,
+                                       MIN_LOAN_AMNT,
+                                       CUST_LIVE_DAY,
+                                       sub_pledge,
+                                       EFFECT_DATE,
+                                       STATUS_ID,flg_period,flg_amt) values(v_str(1),v_str(2),v_str(3),v_str(4),v_str(5),v_str(6),v_str(7),v_str(8),v_str(3),0,v_str(9),v_str(10));
+                                       commit;
+
+                                        OPEN     QRY_RESULT     FOR
+                 select 111 from dual;
+                                       else
+                                           OPEN     QRY_RESULT     FOR
+                 select 333 from dual;
+                                       end if;
+
+          elsif p_pageVal1='GETNEWCRITERIA' then
+         OPEN     QRY_RESULT     FOR
+
+                 select t.* from TBL_BA_CATE_CONFIG_MST t where t.grade_num=p_ParVal and t.status_id=0;
+ elsif p_pageVal1 = 'GETACTIVITYLIST' then
+          OPEN     QRY_RESULT
+          FOR
+
+              SELECT     '-1','SELECT ACTIVITY'
+              FROM       dual
+              UNION
+
+              SELECT     to_char(s.status_id),
+                         s.description
+              FROM       mana0809.tbl_marketing_activity_new a,
+                         mana0809.status_master s ,
+                         mana0809.tbl_po_master q,
+                         mana0809.tbl_po_invoice_mst i
+              WHERE      a.activity = s.status_id
+              AND        a.actvty_id = q.act_id
+              AND        q.po_id = i.po_id
+              AND        s.module_id = 535
+              AND        s.option_id = 1
+              AND        i.status_id in (1,2)
+              AND        a.brid = p_ParVal --3038
+
+              UNION
+
+              SELECT     '111'  ,'SUNDAY MARKETING ACTIVITY'
+              FROM       dual
+              UNION
+              SELECT     '222','NEWSPAPER ACTIVITY'
+              FROM       dual;
+                 elsif p_pageVal1='ADDMARKETINGACTIVITYLEAD' then
+          v_str:=splitstr(p_ParVal,'~');
+
+          SELECT    nvl(MAX(l.l_id)+1,1)
+          INTO      slno1
+          FROM      tbl_marketingactivity_lead l ;
+
+          IF        slno1 IS NULL THEN
+                    slno1:=1;
+          END IF;
+
+          SELECT COUNT(*)
+          INTO      v_cnt
+          FROM      tbl_marketingactivity_lead l
+          WHERE     l.l_id = slno1;
+  --  data = 1name + '~' + 2address + '~' + 3MobNo + '~' + 4Email + '~' + 5Pin + '~' + 6Remarks + '~' + 7branchid + '~' +8 StateId + '~' + 9DistrictID +10 start_date + '~' + 11end_date + '~' + 12activity_type;
+ --  data = 1name + '~' + 2address + '~' + 3MobNo + '~' + 4Email + '~' + 5Pin + '~' +6 Remarks +  '~' + 7start_date + '~' + 8end_date + '~' + 9activity_type+10  usrid + "~" + 11 br_id;
+          IF        v_cnt=0 THEN
+                   INSERT INTO   tbl_marketingactivity_lead l
+                                 (l.l_id,
+                                 l.l_name,
+                                 l.l_address,
+                                 l.l_pincode,
+                                 l.l_email,
+                                 l.l_district_id,
+                                 l.l_branch_id,
+                                 l.l_state_id,
+                                 l.remarks,
+                                 l.entered_dt,
+                                 l.mobile,
+                                 l.act_start_date,
+                                 l.act_end_date,
+                                 l.act_type
+                                 )
+                   VALUES        (slno1,
+                                 v_str(1),
+                                 v_str(2),
+                                 v_str(5),
+                                 v_str(4),
+                                 (SELECT  b.district_id
+                                  FROM    branch_master b
+                                  WHERE   b.branch_id = v_str(11)
+                                 ),
+                                 v_str(11),
+                                 (SELECT  b.state_id
+                                  FROM    branch_master b
+                                  WHERE   b.branch_id = v_str(11)
+                                 ),
+                                 v_str(6),
+                                 to_date(Sysdate),
+                                 v_str(3),
+                                 v_str(7),
+                                 v_str(8),
+                                 v_str(9)
+                                 );
+
+
+          END IF;
+          COMMIT;
+          OPEN QRY_RESULT
+          FOR
+               SELECT  111
+               FROM    dual;
+-----------------------------------------------CRFID : 101511 By Gopika A-------------------------------------
+
+elsif p_pageVal1='ADDMARKETINGBA' then
+          v_str:=splitstr(p_ParVal,'~');
+
+
+                   INSERT INTO   TBL_BA_POTENTIAL l
+                                 (l.ACTIVITY_ID,
+                                 l.ACTIVITY_NAME,
+                                 l.ADDRESS,
+                                 l.MOBILE_NO,
+                                 l.INTREST_FOR_BA,
+                                 l.ENTERDATE,
+                                l.NAME,
+                                   l.AMOUNT,
+                                    l.USER_ID,
+                                 l.BRANCH_ID
+
+                               )
+                   VALUES        (
+                                 v_str(1),
+                                 v_str(2),
+                                 v_str(3),
+                                 v_str(4),
+                                 v_str(5),
+                                 sysdate,
+                                 v_str(6),
+                                 v_str(7),
+                                  v_str(8),
+                                   v_str(9)
+
+
+                                 );
+                     COMMIT;
+
+      open QRY_RESULT for
+      select '111' from dual;
+
+ elsif    p_pageVal1 = 'GETBAACTIVITYLIST' then
+          OPEN     QRY_RESULT
+          FOR
+
+          select t.actvty_id,t.activity from TBL_MARKETING_ACTIVITY_NEW t
+     where t.brid= p_ParVal ;
+
+   elsif    p_pageVal1 = 'SelectContents_Marketingba' then
+          OPEN     QRY_RESULT
+          FOR
+
+          select   s.description,n.final_amount  from status_master s, tbl_marketing_activity_new n
+where s.module_id=535
+and s.option_id=1
+and  s.status_id=n.activity
+and n.actvty_id= p_ParVal ;
+--------------------------------------------------------------------------------------------------------------
+
+elsif p_pageVal1 = 'GETCUSTOMERLIST' then
+          OPEN     QRY_RESULT
+          FOR
+
+              SELECT     '-1','------SELECT CUSTOMER------'
+              FROM       dual
+              UNION
+              select distinct c.cust_id,
+                              c.cust_name
+              from customer c,
+                   tbl_survey_log s,
+                   branch_dtl_new b
+              where c.cust_id=s.cust_id
+              and   b.BRANCH_ID=c.branch_id
+              and  ( b.area_id =p_pageVal2
+              or b.reg_id=p_ParVal)
+              and s.rating='Needs improvement'
+              and s.status_id != 3;
+
+elsif p_pageVal1 = 'GETCUS_CLICK' then
+          OPEN     QRY_RESULT
+          FOR
+            select distinct s.response_dt,
+                              s.disposition,
+                              c.cust_id,
+                              c.cust_name
+              from customer c,
+                   tbl_survey_log s,
+                   branch_dtl_new b
+              where c.cust_id=s.cust_id
+              and   b.BRANCH_ID=c.branch_id
+              and s.cust_id = p_ParVal;
+
+
+elsif p_pageVal1='CUSTOMERISSUE' then
+  v_str:=splitstr(p_ParVal,'~');
+
+  UPDATE tbl_survey_log s SET s.status_id=3,s.resloved_comment = v_str(2) where s.cust_id = v_str(3)  ;
+  COMMIT;
+   OPEN QRY_RESULT
+   FOR
+     SELECT  111
+
+     FROM    dual;
+
+elsif p_pageVal1 = 'GETACTIVITY' then
+          OPEN     QRY_RESULT
+          FOR
+         /*
+              SELECT     '-1','SELECT ACTIVITY'
+              FROM       dual
+              UNION */
+
+              SELECT     to_char(s.status_id),
+                         s.description
+              FROM       mana0809.tbl_marketing_activity_new a,
+                         mana0809.status_master s ,
+                         mana0809.tbl_po_master q,
+                         mana0809.tbl_po_invoice_mst i
+              WHERE      a.activity = s.status_id
+              AND        a.actvty_id = q.act_id
+              AND        q.po_id = i.po_id
+              AND        s.module_id = 535
+              AND        s.option_id = 1
+              AND        i.status_id in (1,2)
+              AND        a.brid = p_ParVal --3038
+              AND        trunc(a.marketing_actvty_end) - sysdate >= 0;
+                        elsif p_pageVal1='MeetingExcelUpld' then
+
+                 v_res1 :=splitstr(p_pageVal2,'~');
+                 select nvl(max(t.sl_no)+1,1) into SlNo1 from tbl_asirvadscheduled_data t ;
+                 if SlNo1 is null then
+                   SlNo1:=1;
+                    end if;
+                    --3285~16-11-2020~Varanasi~12-Uttar Pradesh~Varanasi~29-Varanasi~2900-Pandeypur~12979-Akhilesh Kumar  Singh~6382613220~29000414-SALARPUR 10~23~42210~0
+                   insert into tbl_asirvadscheduled_data t
+                   (t.sl_no,
+                   t.meeting_dt,
+                   t.state,
+                   t.district,
+                   t.region,
+                   t.branch,
+                   t.fdo_name,
+                   t.fdo_phn,
+                   t.group_name,
+                   t.mafil_brid,
+                   t.no_client,
+                   t.tot_due,
+                   t.status,
+                   t.enter_dt)
+                   values
+                   (SlNo1,
+                   to_DATE((v_res1(1)),'DD/MM/YYYY'),
+                   v_res1(2),
+                   v_res1(3)
+                   ,v_res1(4),
+                   v_res1(5),
+                   v_res1(6)
+                   ,v_res1(7),
+                   v_res1(8),
+                   v_res1(9)
+                   ,v_res1(10),
+                   v_res1(11),
+                   0,
+                   sysdate);
+
+                 commit;
+
+     open QRY_RESULT for
+       select 'Successfully Uploaded' from dual;
+
+  elsif p_pageVal1='CONFIRMCRITERIA' then
+
+    v_str:=splitstr(p_ParVal,'~');
+
+    select count(*) into v_cnt from  TBL_BA_CATE_CONFIG_MST t where t.grade_num=v_str(1) and t.status_id=0;
+
+    if v_cnt = 1 then
+
+    if v_str(3)=1 then
+
+    update TBL_BA_CATE_CONFIG_MST t set t.status_id=3,t.REMARKS='Expired',t.from_dt=to_date(t.effect_date) where t.grade_num=v_str(1) and t.status_id=1;
+
+
+      end if;
+
+    update TBL_BA_CATE_CONFIG_MST t set t.status_id=v_str(3),t.REMARKS=v_str(2),t.to_dt=to_date(t.effect_date) where t.grade_num=v_str(1) and t.status_id=0;
+   commit;
+
+                                        OPEN     QRY_RESULT     FOR
+                 select 111 from dual;
+                                       else
+                                           OPEN     QRY_RESULT     FOR
+                 select 333 from dual;
+                                       end if;
+     elsif p_pageVal1='selectbranch' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select '-1','----------SELECT----------' from dual union all select to_char(t.BRANCH_ID),b.BRANCH_NAME||'~'||to_char(t.visit_date) from tbl_branch_visit_schdule t,branch_dtl_new b where t.branch_id=b.BRANCH_ID and t.employee_id=p_ParVal and t.status=0 and t.visit_status=0;
+
+ elsif p_pageVal1='updatedetails' then
+            v_str:=splitstr(p_ParVal,'~');
+           update tbl_branch_visit_schdule t set t.reason=v_str(2),t.status=1 where t.employee_id=v_str(3) and t.branch_id=v_str(1) and t.visit_date=v_str(4);
+ commit;
+ open QRY_RESULT for
+ select 111 from dual;
+
+  elsif p_pageVal1='approval' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select '-1', '----------SELECT----------'
+  from dual
+union all
+select to_char(t.branch_id),t.employee_id || '~' || to_char(t.visit_date) || '~' ||t.reason
+from tbl_branch_visit_schdule t where t.status=1;
+
+
+elsif p_pageVal1='fzmapprove' then
+            v_str:=splitstr(p_ParVal,'^');
+
+            open QRY_RESULT for
+            select '-1', '----------SELECT----------'
+  from dual
+union all
+select to_char(t.branch_id),t.employee_id || '~' || to_char(t.visit_date) || '~' ||t.reason
+from tbl_branch_visit_schdule t,branch_dtl_new b,tbl_fzm_master f where t.branch_id = b.BRANCH_ID and b.reg_id=f.region_id and f.fzm_empcode=p_ParVal and t.status=1 and t.post_id=136;
+
+
+elsif p_pageVal1='activity' then
+   v_str:=splitstr(p_ParVal,'~');
+   select count (*) into v_cnt from BRANCH_VISIT_ACTIVITY t where t.employee_id=v_str(6) and t.branch_id=v_str(7) and t.enter_date=trunc(sysdate);
+   if v_cnt = 0 then
+  insert into BRANCH_VISIT_ACTIVITY t (t.employee_id,t.enter_date,t.call_meet,t.training,t.ba,t.lms,t.personalvisit,branch_id)
+ values(v_str(6),trunc(sysdate),v_str(1),v_str(2),v_str(3),v_str(4),v_str(5),v_str(7));
+
+ commit;
+  update tbl_branch_visit_schdule b set b.visit_status=1 where b.employee_id=v_str(6) and b.branch_id=v_str(7) and b.visit_status=0;
+  commit;
+ open QRY_RESULT for
+ select 111 from dual;
+ else
+
+  open QRY_RESULT for
+ select 333 from dual;
+ end if;
+
+ elsif p_pageVal1='update_request' then
+            v_str:=splitstr(p_ParVal,'~');
+            select count(*) into v_cnt from tbl_branch_visit_schdule t where t.employee_id=v_str(1) and t.status=2 and t.visit_date=v_str(2) and t.branch_id=v_str(4);
+            if v_cnt = 0 then
+           update tbl_branch_visit_schdule t set t.status=2,t.APPROVED_BY=v_str(5) where t.employee_id=v_str(1) and t.visit_date=v_str(2) and t.branch_id=v_str(4) ;
+ commit;
+ open QRY_RESULT for
+ select 111 from dual;
+ else
+   open QRY_RESULT for
+ select 333 from dual;
+ end if;
+ elsif p_pageVal1='checkpostid' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select e.post_id from employee_master e where e.emp_code= p_ParVal;
+  elsif p_pageVal1='autherisation' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select count(*) from employee_master e where e.emp_code= p_ParVal and (e.branch_id=0 or e.post_id='-36');
+
+      elsif p_pageVal1='branchactivity' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select count(*) from tbl_branch_visit_schdule t where t.employee_id= p_ParVal ;
+
+       elsif p_pageVal1='accesstoview' then
+             v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+             select count(*) from employee_master t where t.emp_code= p_ParVal  and t.status_id=1 and (t.post_id in(10,1,-36,136,199)   or  t.branch_id=0 or t.department_id in (605,576));
+
+
+
+         elsif p_pageVal1='getdesignation' then
+            v_str:=splitstr(p_ParVal,'^');
+  open QRY_RESULT for
+            select '-1', '----------SELECT----------'
+  from dual
+union all
+select to_char(t.designation_id),t.designation from designation_master t;
+elsif p_pageVal1='getpost' then
+            v_str:=splitstr(p_ParVal,'^');
+  open QRY_RESULT for
+            select '-1', '----------SELECT----------'
+  from dual
+union all
+select to_char(t.post_id),t.post_name from post_mst t;
+
+elsif p_pageVal1='GETDEPARTMENT' then
+            v_str:=splitstr(p_ParVal,'^');
+  open QRY_RESULT for
+            select '-1', '----------SELECT----------'
+  from dual
+union all
+select to_char(t.dep_id),t.dep_name from department_mst t;
+elsif p_pageVal1='create_employee' then
+v_str:=splitstr(p_ParVal,'~');
+select max(e.emp_code) into v_cnt1 from employee_master e ;
+v_empcode:=v_cnt1+1;
+select count(*) into v_cnt from employee_master e where e.emp_code=v_empcode;
+if v_cnt=0 then
+  insert into employee_master(emp_code,emp_name,password,branch_id,firm_id,status_id,shift_id,join_dt,access_id,tax_flag,pf_flag,grati_flag,mediclaim_flag,bond_flag,da_flag,esi_flag,security_dep,paid_amt,basic_pay,emp_type,basic_dt,grade_id,block_id,logn_sts,designation_id,department_id,post_id)values(v_empcode,v_str(3),v_str(5),0,1,1,1,trunc(sysdate),19,'F','F','F','F','1','F','F',0.00,0.00,5000.00,4,trunc(sysdate),16,0,1,v_str(1),v_str(2),v_str(4));
+  commit;
+  select count(*) into v_cnt2 from EMPLOY_FIRM e where e.emp_code=v_empcode;
+  if v_cnt2=0 then
+  insert into EMPLOY_FIRM(EMP_CODE,
+                          FIRM_ID,
+                          FROM_DT,
+                          BRANCH_ID)values(v_empcode,1,trunc(sysdate),0);
+  commit;
+insert into mana0809.tbl_common_nomin_entries
+  (emp_code,
+   partic_id,
+   nomin_name,
+   nomin_dob,
+   nomin_relat,
+   nomin_address,
+   nomin_cont_emailid,
+
+   entered_on)
+values
+  (v_empcode, 1, v_str(3), to_date(sysdate), 'NA', 'NA','NA-DUMMY ID',sysdate);
+  commit;
+  insert into tbl_pwa_otherfirm_emp (employee_code,
+
+                                     employee_name,
+
+                                     dep_id
+                                   )
+                                     values(v_empcode,v_str(3),v_str(2));
+ end if;
+
+
+  open QRY_RESULT for
+  select v_empcode from dual;
+  else
+ open QRY_RESULT for
+  select 333 from dual;
+end if;
+elsif p_pageVal1='getnoteid' then
+
+   open   QRY_RESULT for
+
+    select '-1', '----------SELECT----------'
+  from dual
+union all
+   select to_char(t.note_id), to_char(t.note_id) || '~' || t.subject
+     from tbl_pwa_note_mst t
+    where t.created_by = p_ParVal
+      and t.status_id = 0
+      and t.doc_type = 7
+      and  not exists
+ (select  p.noteid from mana0809.tbl_papperless_audit_approvers p
+                         where p.work_status = 0 and p.noteid=t.note_id);
+elsif p_pageVal1='confirm_details' then
+v_str:=splitstr(p_pageVal2,'~');
+select count(*) into v_cnt from TBL_PAPPERLESS_AUDIT_APPROVERS t where t.noteid=v_str(1) and t.creator=p_ParVal;
+if v_cnt = 0 then
+     insert into TBL_PAPPERLESS_AUDIT_APPROVERS t(t.NOTEID,t.CREATOR,t.WORK_STATUS,t.INSERTED_ON,t.sl_no) values(v_str(1),p_ParVal,0,trunc(sysdate),1);
+commit;
+end if;
+update dms.tbl_papperless_audit t set t.work_status=2 where t.note_id=v_str(1) and t.assigned_by=p_ParVal and t.work_status=1;
+commit;
+ open   QRY_RESULT for
+ select 'SUCCCESSFULL'  from dual;
+ elsif p_pageVal1='update_finalstatus' then
+  v_str:=splitstr(p_pageVal2,'~');
+
+
+
+      select a.note_id into v_name from dms.tbl_papperless_audit a where a.sl_no=v_str(1);
+
+    select count(*) into v_cnt1 from dms.tbl_papperless_audit t where t.note_id=v_name;
+    select count(*) into v_cnt2 from dms.tbl_papperless_audit t where t.note_id=v_name and t.work_status=4;
+    if v_cnt1 = v_cnt2 then
+      update tbl_papperless_audit_approvers a set a.work_updatedon=trunc(sysdate) where a.noteid=v_name;
+      end if;
+  if v_str(5)='3' then
+     open QRY_RESULT for
+      select 'WORK UPDATED' from dual;
+      end if;
+
+   if v_str(5)='4' then
+     open QRY_RESULT for
+      select 'SUCCESSFULL' from dual;
+      end if;
+elsif p_pageVal1='confirm_work' then
+      v_str := splitstr(p_ParVal, '~');
+       select a.note_id into v_name from dms.tbl_papperless_audit a where a.sl_no=v_str(1);
+     if v_str(4)= '3'then
+       select count(*) into v_cnt from dms.tbl_paperless_audit_work_dtl t where t.emp_code=v_str(3) and t.note_id=v_name;
+       if v_cnt=0 then
+    insert into dms.tbl_paperless_audit_work_dtl (SL_NO,EMP_CODE,remarks,WORK_UPDATED_ON,EXPECTED_DATE,status,note_id)values(v_str(1),v_str(3),v_str(2),trunc(sysdate),v_str(5),3,v_name);
+     update dms.tbl_papperless_audit t set t.work_status=v_str(4) where t.sl_no=v_str(1);
+     end if;
+     commit;
+      open QRY_RESULT for
+      select 'WORK UPDATED' from dual;
+     end if;
+      if v_str(4)= '4'then
+        select count(*) into v_cnt from dms.tbl_paperless_audit_work_dtl t where t.emp_code=v_str(3) and t.note_id=v_name;
+       if v_cnt=0 then
+      insert into dms.tbl_paperless_audit_work_dtl (SL_NO,EMP_CODE,remarks,WORK_UPDATED_ON,status,note_id)values(v_str(1),v_str(3),v_str(2),trunc(sysdate),4,v_name);
+    update dms.tbl_papperless_audit t set t.work_status=v_str(4) where t.sl_no=v_str(1);
+   commit;
+   else
+
+    update dms.tbl_paperless_audit_work_dtl t set t.status=4,t.work_updated_on=trunc(sysdate),t.remarks=v_str(2) where t.sl_no=v_str(1);
+     update dms.tbl_papperless_audit t set t.work_status=v_str(4) where t.sl_no=v_str(1);
+     commit;
+     end if;
+     open QRY_RESULT for
+     select 'SUCCESSFULL' from dual;
+     end if;
+
+
+    select count(*) into v_cnt1 from dms.tbl_papperless_audit t where t.note_id=v_name;
+    select count(*) into v_cnt2 from dms.tbl_papperless_audit t where t.note_id=v_name and t.work_status=4;
+    if v_cnt1 = v_cnt2 then
+      update tbl_papperless_audit_approvers a set a.work_updatedon=trunc(sysdate) where a.noteid=v_name;
+      end if;
+
+   elsif p_pageVal1='insert_data' then
+      v_slno:=seq_audit_id.nextval;
+  v_str := splitstr(p_pageVal2, '~');
+  v_dtl2:=splitstr(v_str(4), '-');
+      insert into dms.tbl_papperless_audit t(t.note_id,t.subject,t.employee_name,t.employee_code,t.work_desription,t.target_date,t.insert_date,t.assigned_by,t.sl_no,t.work_status)values(v_str(1),v_str(2),v_dtl2(2),v_dtl2(1),v_str(3),v_str(5),trunc(sysdate),v_str(6),v_slno,1);
+commit;
+ open QRY_RESULT for
+        select t.note_id||'~'||t.subject||'~'||t.employee_code||'~'||t.employee_name||'~'||t.work_desription||'~'||t.target_date||'~'||t.sl_no||'$' from dms.tbl_papperless_audit t where t.note_id=v_str(1) and t.assigned_by=v_str(6) and t.work_status=1;
+
+  elsif p_pageVal1='download_attach' then
+     select count(t.filename) into v_cnt from dms.tbl_papperless_audit t where t.sl_no=p_pageVal2;
+     if v_cnt=0 then
+       open QRY_RESULT for
+    select t.attachment,t.filename from dms.tbl_papperless_audit t where t.sl_no=-1;
+    else
+    open QRY_RESULT for
+    select t.attachment,t.filename from dms.tbl_papperless_audit t where t.sl_no=p_pageVal2;
+    end if;
+    elsif p_pageVal1='getworks' then
+        open QRY_RESULT for
+
+    select '-1', '---------------SELECT------------------'
+  from dual
+union all
+        select to_char(t.sl_no),to_char(t.note_id)||'~'||to_char(t.subject) from dms.tbl_papperless_audit t where t.employee_code=p_ParVal and t.work_status in (2,3);
+   elsif p_pageVal1='insertdata1' then
+     v_str:=splitstr(p_pageVal2,'~');
+      open QRY_RESULT for
+      select t.note_id||'~'||t.subject||'~'||t.employee_code||'~'||t.employee_name||'~'||t.work_desription||'~'||t.target_date||'~'||t.sl_no||'$' from dms.tbl_papperless_audit t where t.note_id=v_str(1) and t.assigned_by=v_str(7) and t.work_status=1;
+
+ elsif p_pageVal1='insertdata' then
+     v_str:=splitstr(p_pageVal2,'~');
+      open QRY_RESULT for
+      select t.note_id||'~'||t.subject||'~'||t.employee_code||'~'||t.employee_name||'~'||t.work_desription||'~'||t.target_date||'~'||t.sl_no||'$' from dms.tbl_papperless_audit t where t.note_id=v_str(1) and t.assigned_by=v_str(6) and t.work_status=1;
+   elsif p_pageVal1='deletedata' then
+     v_str:=splitstr(p_pageVal2,'~');
+     delete from dms.tbl_papperless_audit t  where t.sl_no=p_ParVal;
+      open QRY_RESULT for
+   select 'deleted' from dual;
+   elsif p_pageVal1='updatework' then
+v_str:=splitstr(p_ParVal,'~');
+update dms.tbl_papperless_audit t set t.work_status=1 where t.note_id=v_str(1) and t.employee_code=355646 and t.assigned_by=v_str(6);
+commit;
+open QRY_RESULT for
+select 111 from dual;
+
+elsif p_pageVal1='getdetails' then
+   v_str:=splitstr(p_ParVal,'~');
+   select count(*) into v_cnt from dms.tbl_papperless_audit t where t.note_id=v_str(2) and t.employee_code=v_str(1) and t.work_status in(2,3);
+   if v_cnt <> 0 then
+   open QRY_RESULT for
+  select t.work_desription,t.target_date,t.assigned_by from  dms.tbl_papperless_audit t where t.note_id=v_str(2) and t.employee_code=v_str(1) and t.work_status in(2,3);
+else
+  open QRY_RESULT for
+  select  333 from dual;
+  end if;
+elsif p_pageVal1='ref_data' then
+  v_str:=splitstr(p_ParVal,'~');
+   open QRY_RESULT for
+     select t.note_id||'~'||t.subject||'~'||t.employee_code||'~'||t.employee_name||'~'||t.work_desription||'~'||t.target_date||'~'||t.sl_no||'$' from dms.tbl_papperless_audit t where t.note_id=v_str(1) and t.assigned_by=p_pageVal2 and t.work_status=1;
+elsif p_pageVal1='search_emp' then
+v_str:=splitstr(p_ParVal,'~');
+emp_code:=p_pageVal2;
+select count(*) into v_cnt from employee_master m where m.emp_code like ''||emp_code||'%';
+  if v_cnt>0 then
+  open QRY_RESULT for
+ select m.emp_code||'-'||m.emp_name,m.emp_code from employee_master m where m.emp_code like ''||emp_code||'%' and m.status_id=1;
+ else
+  open QRY_RESULT for
+ select m.emp_code||'-'||m.emp_name,m.emp_code from employee_master m where m.emp_code like '%'||emp_code||'%' and m.status_id=1;
+
+   end if;
+ elsif p_pageVal1='close_note' then
+  v_str:=splitstr(p_pageVal2,'~');
+  select count(*) into v_cnt from tbl_papperless_audit_approvers t where t.noteid=v_str(1) and t.work_status=0;
+ if v_cnt=0 then
+  insert into tbl_papperless_audit_approvers(noteid,creator,work_status,inserted_on,work_updatedon,sl_no)values(v_str(1),p_ParVal,0,trunc(sysdate),trunc(sysdate),0);
+  commit;
+   open QRY_RESULT for
+    select 111 from dual;
+  else
+    open QRY_RESULT for
+    select 333 from dual;
+    end if;
+
+
+     elsif p_pageVal1='GETPARENTLIST' then
+
+          open   QRY_RESULT for
+            SELECT -1 as parent_id ,'----Select-----' as parent_name
+          FROM   DUAL
+          UNION ALL
+          select p.parent_id,p.parent_name
+          FROM   TBL_DIGITAL_ITEMS_PARENT p
+          ORDER BY parent_id;
+
+
+ elsif p_pageVal1='GETPARENTLIST_ADD' then
+
+          open   QRY_RESULT for
+
+          select p.parent_id,p.parent_name
+          FROM   TBL_DIGITAL_ITEMS_PARENT p
+          WHERE  p.parent_id <> 1
+          order by parent_name ;
+
+
+ elsif p_pageVal1='GETDATA' then
+
+    open QRY_RESULT for
+       SELECT    e.emp_name,p.post_name,b.branch_addr,g.mobile_no,g.email ,b.branch_name
+      FROM      employee_master e,
+                post_mst  p,
+                branch_master b,
+                emp_greeting_master g
+      WHERE     e.post_id = p.post_id
+      AND       e.branch_id = b.branch_id
+      AND       g.emp_code = e.emp_code
+      AND       e.emp_code = p_ParVal ;
+
+ elsif p_pageVal1='GETITEMLIST' then
+
+          open   QRY_RESULT for
+        SELECT -1 as item_id ,'----SELECT-----' as item_name
+          FROM   DUAL
+          UNION ALL
+          select i.item_id,i.item_name
+          FROM   TBL_DIGITAL_ITEMS i
+          WHERE  i.parent_id =p_ParVal ;
+          elsif p_pageVal1 = 'Region_Lst' then
+
+    OPEN     QRY_RESULT
+            FOR
+select r.reg_id, r.reg_name
+  from TBL_FZM_MASTER t, REGION_MASTER b, region_master r
+
+ where fzm_empcode = p_ParVal
+   and t.region_id = b.reg_id
+   and r.reg_id = b.reg_id;
+
+
+
+ elsif p_pageVal1 = 'Area_Lst' then
+
+    OPEN     QRY_RESULT
+            FOR
+ SELECT distinct b.area_id, b.area_name
+   FROM branch_detail_new b
+  where b.reg_id in (SELECT b.reg_id as a
+                       FROM branch_detail_new b
+                      WHERE b.branch_id = p_ParVal);
+
+
+ elsif p_pageVal1 = 'Area_by_ID_Lst' then
+
+    OPEN     QRY_RESULT
+            FOR
+ SELECT distinct b.area_id, b.area_name
+   FROM branch_detail_new b
+  where b.reg_id =p_ParVal;
+
+
+    elsif p_pageVal1 = 'Pldg_Lst' then
+
+                SELECT p.area_id
+                into v_area
+                FROM mana0809.branch_dtl_new p
+                where p.BRANCH_ID=p_ParVal;      --p_ParVal OR 663
+
+    OPEN     QRY_RESULT
+            FOR
+               select t.pldge_no, t.pldge_no,t.branch_id,p.BRANCH_NAME
+               from TBL_GL_NEWCUST_DAILY_INC t,
+               mana0809.branch_dtl_new p
+                where t.branch_id = p_ParVal
+                and t.branch_id =p.BRANCH_ID       --v_str(2) OR 663
+                and t.created_date = t.close_dt
+                and t.pldge_no not in (select y.pledge_id from tbl_nca_samedaysettlement y where t.pldge_no=y.pledge_id )
+                 and p.area_id = v_area;
+
+
+     elsif p_pageVal1 = 'Pledge_by_ID_Lst' then
+
+    OPEN     QRY_RESULT
+            FOR
+
+              select t.pldge_no, t.pldge_no,t.branch_id,p.BRANCH_NAME
+                from TBL_GL_NEWCUST_DAILY_INC t, mana0809.branch_dtl_new p
+               where p.area_id = p_ParVal
+                and t.pldge_no not in (select y.pledge_id from tbl_nca_samedaysettlement y where t.pldge_no=y.pledge_id )
+                 and t.branch_id = p.BRANCH_ID
+                 and t.created_date = t.close_dt;
+
+
+
+   elsif p_pageVal1 = 'get_Pldg_details' then
+     v_str:=splitstr(p_ParVal,'~');
+        OPEN     QRY_RESULT
+        FOR
+
+       SELECT        p.BRANCH_ID,
+                      p.CUST_ID,
+                      p.cust_name,
+                     to_char( p.tra_dt),
+                      to_char(p.maturity_dt),
+                      b.branch_name
+        FROM          pledge_master p ,tbl_branch_master b,TBL_GL_NEWCUST_DAILY_INC ti
+        WHERE         p.pledge_no = v_str(1)
+          AND          p.branch_id=b.branch_id
+          and   p.cust_id=ti.cust_id;
+
+
+         elsif p_pageVal1='NCAADDDETAILS' then
+          v_str :=splitstr(p_ParVal,'~');
+          select nvl(max(t.id) + 1, 1)
+            into SlNo1
+            from tbl_nca_samedaysettlement t;
+          if SlNo1 is null then
+            SlNo1 := 1;
+          end if;
+          SELECT COUNT(*)
+          INTO      v_cnt
+          FROM      tbl_nca_samedaysettlement y
+          WHERE     y.id = SlNo1;
+          IF v_cnt = 0 then
+          insert into tbl_nca_samedaysettlement y
+                      (y.id,
+                      y.BRANCH_ID,
+                      y.REMARKS,
+                      y.PLEDGE_ID,
+                      y.EMP_CODE )
+
+                    values(
+                    SlNo1,
+                    v_str(1),
+                    v_str(2),
+                    v_str(3),
+                    v_str(4)
+
+
+                      );
+
+          END IF  ;
+          commit;
+
+     open QRY_RESULT for
+       select 111 from dual;
+      elsif p_pageVal1 = 'get_branch_mailId' then
+         v_str:=splitstr(p_ParVal,'~');
+
+     IF v_str(1) = 0 THEN
+
+        OPEN     QRY_RESULT
+        FOR
+        SELECT   CONCAT(v_str(2), '@manappuram.com') from dual;
+     ELSE
+
+
+        SELECT   COUNT(*)
+        INTO     v_cnt
+        FROM     TBL_EMP_MAILDS t
+        WHERE    t.status = 4
+        AND      t.id = v_str(1);
+
+        IF       v_cnt >0 THEN
+                 OPEN     QRY_RESULT
+                 FOR
+                 SELECT   t.mail
+                 FROM     TBL_EMP_MAILDS t
+                 WHERE    t.status = 4
+                 AND      t.id = v_str(1);
+        ELSE
+
+                 OPEN     QRY_RESULT
+                 FOR
+                 SELECT   CONCAT(v_str(2), '@manappuram.com') from dual;
+
+        END IF;
+       END IF;
+   elsif  p_pageVal1 = 'get_location_dtl' then
+
+          SELECT     COUNT(*)
+          INTO       v_cnt
+          FROM       TBL_ONLINE_BRANCH_LOCATOR l
+          WHERE      l.branch_id = p_ParVal;
+
+          IF         v_cnt > 0 THEN
+
+                    OPEN      QRY_RESULT
+                    FOR
+                              SELECT        l.latitude,l.longitude
+                              FROM          TBL_ONLINE_BRANCH_LOCATOR l
+                              WHERE         l.branch_id = p_ParVal;
+          ELSE
+                    OPEN      QRY_RESULT
+                    FOR
+                              SELECT        10.399137, 76.114563
+                              FROM          DUAL;
+          END IF;
+      --Marketing helpdesk-jithinkrishna iv--
+              elsif  p_pageval1='GETBRANCHDETAIL' then
+            open QRY_RESULT for
+              select a.fzm,
+                     b.reg_name,
+                     b.area_name,
+                     b.BRANCH_NAME,
+                     bm.BRANCH_ID
+                from emp_master                e,
+                     branch_dtl_new            b,
+                     BRANCH_master             bm,
+                     tbl_fzm_master            a
+               where e.BRANCH_ID = b.BRANCH_ID
+                 and bm.branch_id = b.BRANCH_ID
+                 and a.region_id = b.reg_id
+                 and e.EMP_CODE = p_ParVal;
+
+       elsif  p_pageval1='GETACTIVITYHEADLIST' then
+            open QRY_RESULT for
+              select t.activity_id,t.activity_name from TBL_MARKETING_ACTIVITY_HEAD t where t.activity_status=1 order by t.activity_id;
+
+
+        elsif  p_pageval1='GETDETAILLIST' then
+            open QRY_RESULT for
+            select t.activity_detail_id, t.activity_dt_name from TBL_MARKETING_ACTIVITY_DETAIL t where t.activity_dt_status=1 and t.activity_id=p_ParVal order by t.activity_detail_id;
+
+       elsif  p_pageval1='LOADDATA' then
+            open QRY_RESULT for
+            select t.activity_dt_desc from TBL_MARKETING_ACTIVITY_DETAIL t where t.activity_dt_status=1 and t.activity_detail_id=p_ParVal;
+
+      elsif p_pageVal1='SAVEQUERY' then
+         v_str:=splitstr(p_ParVal,'~');
+         v_qid:=SEQ_QUERY_ID.nextval;
+          insert into TBL_MARKETING_ACT_QUERY_DETAIL
+            (query_id,
+     branch_id,
+             req_emp_id,
+             query_req_dt,
+             query_desc,
+             resp_emp_id,
+             query_status,
+             activity_id,
+             activity_detail_id)
+          values
+            (v_qid,v_str(5), v_str(4), sysdate, v_str(3), 0,0, v_str(1), v_str(2));
+      commit;
+      open QRY_RESULT for
+      select 111 from dual;
+
+      elsif p_pageVal1='GETQUERYBRANCHLIST' then
+         select t.post_id, t.branch_id,t.department_id
+          into postid, branchid,departmentid
+          from employee_master t
+         where t.emp_code = p_ParVal;
+
+        select t.area_id, t.reg_id, m.fzm_id
+          into areaid, regid, fzmid
+          from branch_dtl_new t, tbl_fzm_master m
+         where t.reg_id = m.region_id
+           and t.BRANCH_ID = branchid;
+        if postid = 136 then
+          open QRY_RESULT for
+            select distinct t.branch_id, b.branch_name
+              from TBL_MARKETING_ACT_QUERY_DETAIL t, branch_dtl_new b
+             where t.branch_id = b.BRANCH_ID
+               and b.area_id = areaid
+               and query_status=0
+               and t.activity_id != 3;
+        elsif postid = 199 then
+          open QRY_RESULT for
+            select distinct t.branch_id, b.branch_name
+              from TBL_MARKETING_ACT_QUERY_DETAIL t, branch_dtl_new b
+             where t.branch_id = b.BRANCH_ID
+               and b.reg_id = regid
+               and query_status=0
+               and t.activity_id != 3;
+        elsif postid = -36 then
+          open QRY_RESULT for
+            select distinct t.branch_id, b.branch_name
+              from TBL_MARKETING_ACT_QUERY_DETAIL t,
+                   branch_dtl_new                 b,
+                   tbl_fzm_master                 m
+             where t.branch_id = b.BRANCH_ID
+               and b.reg_id = m.region_id
+               and m.fzm_id = fzmid
+              and query_status=0
+              and t.activity_id != 3;
+        elsif departmentid = 197 then
+          open QRY_RESULT for
+            select distinct t.branch_id, b.branch_name
+              from TBL_MARKETING_ACT_QUERY_DETAIL t,
+                   branch_dtl_new                 b
+             where t.branch_id = b.BRANCH_ID
+               and t.activity_id = 3
+      and query_status=0;
+    else
+      open QRY_RESULT for
+            select distinct t.branch_id, b.branch_name
+              from TBL_MARKETING_ACT_QUERY_DETAIL t,
+                   branch_dtl_new                 b
+             where t.branch_id = b.BRANCH_ID
+             and t.activity_id != 3
+      and query_status=0;
+     end if;
+     elsif  p_pageval1='GETQUERYDETAILLIST' then
+        v_str:=splitstr(p_ParVal,'~');
+         select t.post_id, t.branch_id,t.department_id
+          into postid, branchid,departmentid
+          from employee_master t
+           where t.emp_code = v_str(2);
+       if departmentid = 197 then
+          open QRY_RESULT for
+          select t. query_id||'~'|| c.ACTIVITY_NAME||'~'|| b.branch_name||'~'|| trunc(t. query_req_dt)||'$'
+            from TBL_MARKETING_ACT_QUERY_DETAIL t,
+       branch_dtl_new b,
+      TBL_MARKETING_ACTIVITY_HEAD c
+           where t.query_status = 0
+      and  t.branch_id = b.BRANCH_ID
+      and  t. activity_id = c. activity_id
+      and t.activity_id = 3
+             and t.branch_id = v_str(1) order by t. query_id;
+      else
+        open QRY_RESULT for
+          select t. query_id||'~'|| c.ACTIVITY_NAME||'~'|| b.branch_name||'~'|| trunc(t. query_req_dt)||'$'
+            from TBL_MARKETING_ACT_QUERY_DETAIL t,
+       branch_dtl_new b,
+      TBL_MARKETING_ACTIVITY_HEAD c
+           where t.query_status = 0
+      and  t.branch_id = b.BRANCH_ID
+      and  t. activity_id = c. activity_id
+      and t.activity_id != 3
+             and t.branch_id = v_str(1) order by t. query_id;
+    end if;
+    elsif  p_pageval1='GETQUERYDETAILDATALIST' then
+        open QRY_RESULT for
+        select b.branch_name,m.EMP_NAME,c.ACTIVITY_NAME,trunc(t.query_req_dt),t. query_desc
+          from TBL_MARKETING_ACT_QUERY_DETAIL t,
+     branch_dtl_new b,
+    TBL_MARKETING_ACTIVITY_HEAD c,
+    EMP_MASTER m
+         where t.query_status = 0
+    and  t.branch_id = b.BRANCH_ID
+    and  t. activity_id = c. activity_id
+    and  t.req_emp_id = m.EMP_CODE
+           and t. query_id = p_ParVal;
+
+    elsif  p_pageval1='SAVEQUERYRESPONSE' then
+           v_str:=splitstr(p_ParVal,'~');
+        update TBL_MARKETING_ACT_QUERY_DETAIL t
+           SET t.query_resp    = v_str(3),
+               t.query_resp_dt = sysdate,
+               t.resp_emp_id   = v_str(2),
+               t.query_status   = 1
+         WHERE t. query_id = v_str(1);
+          commit;
+       open QRY_RESULT for
+          select 111 from dual;
+
+        elsif  p_pageval1='GETQUERYDETAILRESPONSE' then
+  v_str:=splitstr(p_ParVal,'~');
+        open QRY_RESULT for
+        select to_date(t. query_req_dt)||'~'|| c.ACTIVITY_NAME||'~'|| t. query_desc||'~'|| t.query_resp||'$'
+          from TBL_MARKETING_ACT_QUERY_DETAIL t,
+    TBL_MARKETING_ACTIVITY_HEAD c
+         where
+     trunc(t. query_req_dt) between v_str(2) and v_str(3)  and  t. activity_id = c. activity_id
+           and t.branch_id = v_str(1);
+         elsif  p_pageval1='GETPERMISSIONLIST' then
+        open QRY_RESULT for
+        select count(t.post_id)
+  from employee_master t
+ where t.emp_code = p_ParVal
+   and t.status_id = 1
+   and t.post_id in (10, 198, 1);
+
+   elsif  p_pageVal1 = 'insert_log' then
+           v_str :=splitstr(p_ParVal,'~');
+          insert into crf_util_rpt (brid,firm_id,emp_code,tra_dt,tradate,crf_id,application)values(v_str(1),1,v_str(2),sysdate,sysdate,v_str(3),v_str(4));
+          commit;
+       OPEN      QRY_RESULT
+           FOR       select 111 from dual;
+
+   ------------------------------------------------------------------------------------------------------
+    elsif p_pageVal1='GETREPORTMENU' then
+     v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+       select T.INC_ID,T.INC_NAME from TBL_GL_INC_MASTER t WHERE T.STATUS=v_str(1) AND t.inc_type=v_str(2);
+
+   elsif  p_pageval1='EMPLOYEEOVERSEE' then
+       v_str:=splitstr(p_ParVal,'~');
+            open QRY_RESULT for
+            SELECT COUNT(T.EMP_ID) FROM FORM_ACCESSIBILITY T WHERE T.EMP_ID=v_str(1) AND T.FORM_ID=5636 ;
+
+
+  elsif p_pageVal1 = 'Region_Lst_ZONEWISE' then
+
+    OPEN     QRY_RESULT
+            FOR
+select DISTINCT(r.reg_id), r.reg_name
+  from REGION_MASTER r,tbl_fzm_master B
+ where r.reg_id = b.region_id
+   AND B.FZM_ID= p_ParVal;
+
+  elsif p_pageVal1 = 'Zone_Lst' then
+
+OPEN QRY_RESULT
+FOR
+select distinct (t.fzm_id), t.fzm from tbl_fzm_master t order by t.fzm_id;
+
+elsif p_pageVal1 = 'Branch_Lst' then
+
+OPEN QRY_RESULT
+FOR
+SELECT distinct b.branch_id, b.branch_name
+FROM branch_detail_new b
+where b.area_id = p_ParVal;
+
+elsif p_pageVal1 = 'Branch_by_ID_Lst' then
+
+OPEN QRY_RESULT
+FOR
+SELECT distinct b.branch_id, b.branch_name
+FROM branch_detail_new b
+where b.area_id in (SELECT b.area_id as a
+FROM branch_detail_new b
+WHERE b.branch_id = p_ParVal);
+
+
+elsif p_pageVal1 = 'Area_Region_Lst' then
+
+    OPEN     QRY_RESULT
+            FOR
+ SELECT distinct b.area_id, b.reg_id
+   FROM branch_detail_new b
+  where b.branch_id = p_ParVal;
+
+   elsif p_pageVal1 = 'GETOVERSEESDETAIL' then
+     v_str:=splitstr(p_ParVal,'~');
+        OPEN     QRY_RESULT
+        FOR
+
+         select T.SEQ_NUMBER,
+                t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount
+           from TBL_GL_DAILY_INC_PROCESSED t,
+                mana0809.branch_dtl_new    b,
+                tbl_gl_inc_master          a,
+                mana0809.employee_master   e1
+          where t.branch_id = b.BRANCH_ID
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(2))
+            and b.area_id in
+                (select b1.area_id
+                   from mana0809.employee_master e, mana0809.branch_dtl_new b1
+                  where e.branch_id = b1.BRANCH_ID
+                    and e.post_id = 136
+                    and e.status_id = 1
+                    and e.emp_code = v_str(2))
+            and t.inc_id = a.inc_id
+            and t.inc_id = v_str(1)
+            and t.post_id=10
+            and t.emp_code = e1.emp_code;
+
+    elsif p_pageVal1 = 'GETOVERSEESDETAILAREA' then
+
+     v_str:=splitstr(p_ParVal,'~');
+
+    if v_str(3) = 199
+
+      then
+
+        open QRY_RESULT for
+
+         select T.SEQ_NUMBER,
+
+                t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id = v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id = v_str(1)
+
+            and t.post_id=10
+
+            and t.emp_code = e1.emp_code;
+
+
+
+       elsif v_str(3) = -36
+
+         then
+
+         open QRY_RESULT for
+
+         select T.SEQ_NUMBER,
+
+                t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id = v_str(1)
+
+
+             and t.post_id=10
+
+            and t.emp_code = e1.emp_code
+
+
+
+            union  all
+
+
+
+select T.SEQ_NUMBER,  t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount || '~'||  'AH-APPROVAL'
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id =v_str(1)
+
+             and t.post_id=136
+
+            and t.emp_code = e1.emp_code;
+
+        elsif v_str(3) = 0
+
+         then
+
+         open QRY_RESULT for
+
+         select T.SEQ_NUMBER,
+
+                t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id = v_str(1)
+
+
+             and t.post_id=10
+
+            and t.emp_code = e1.emp_code
+
+
+
+            union  all
+
+
+
+                   select T.SEQ_NUMBER,  t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount || '~'||  'AH-APPROVAL'
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id =v_str(1)
+
+             and t.post_id=136
+
+            and t.emp_code = e1.emp_code
+
+            union  all
+
+
+
+                   select T.SEQ_NUMBER,  t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount || '~'||  'RM-APPROVAL'
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id =v_str(1)
+
+             and t.post_id=199
+
+            and t.emp_code = e1.emp_code
+
+            union  all
+
+
+
+                   select T.SEQ_NUMBER,  t.emp_code || '~' || e1.emp_name || '~' || t.inc_frdt || '~' ||
+
+                t.inc_tdt || '~' || a.inc_name || '~' || t.inc_amount || '~'||  'FZM-APPROVAL'
+
+           from TBL_GL_DAILY_INC_PROCESSED t,
+
+                mana0809.branch_dtl_new    b,
+
+                tbl_gl_inc_master          a,
+
+                mana0809.employee_master   e1
+
+          where t.branch_id = b.BRANCH_ID
+
+            and  t.seq_number not in (select tt.seq_number from TBL_INC_OVERSEE_DTL tt where tt.oversee= v_str(4))
+
+            and b.area_id =v_str(2)
+
+            and t.inc_id = a.inc_id
+
+            and t.inc_id =v_str(1)
+
+             and t.post_id=-36
+
+            and t.emp_code = e1.emp_code;
+
+ END IF;
+
+elsif p_pageVal1='UPDATEOVERSEESDETAIL' then
+
+    v_str:=splitstr(p_ParVal,'~');
+
+
+
+   update TBL_GL_DAILY_INC_PROCESSED t
+
+      set t.inc_status = v_str(3),
+
+       t.oversee = v_str(4),
+
+      t.oversee_dt= sysdate,
+
+      t.remarks=v_str(2)
+
+      where t.seq_number=v_str(1);
+
+      select e.post_id into post from employee_master e
+                       where e.emp_code=v_str(4) ;
+
+       insert into tbl_inc_oversee_dtl(seq_number,tra_dt,oversee,post_id) values (v_str(1),sysdate,v_str(4),post);
+
+       PROC_INC_APPROVAL_ID_BLOCK('REMOVE',v_str(4),QRY_RESULT);
+
+    commit;
+
+       open QRY_RESULT for
+
+       select 111 from dual;
+
+
+          elsif  p_pageval1='getaccesstoreport' then
+           open QRY_RESULT for
+            select sum(cnt)
+              from (select count(t.post_id) cnt
+                      from MANA0809.employee_master t
+                     where t.emp_code = p_ParVal
+                       and t.post_id in
+                           (136, 197, -248, 199, -249, -36, 73, 85, -129, 63)
+                    union all
+                    select count(1) cnt
+                      from MANA0809.FORM_ACCESSIBILITY t1
+                     where t1.emp_id = p_ParVal
+                       and t1.form_id = 5637);
+
+    elsif  p_pageval1='GrowthRepAccess' then
+        open QRY_RESULT for
+       select sum(cnt) from (select count(t.post_id) cnt
+       from MANA0809.employee_master t
+       where t.emp_code =p_ParVal
+       and t.post_id in (63,65,203,-329)
+       union all
+       select count(1) cnt from MANA0809.FORM_ACCESSIBILITY t1
+       where t1.emp_id=p_ParVal and t1.form_id=5637);
+
+ elsif  p_pageval1='MaharashtraInc' then
+        open QRY_RESULT for
+       select sum(cnt) from (select count(t.post_id) cnt
+       from MANA0809.employee_master t
+       where t.emp_code =p_ParVal
+       and t.post_id in (63,65)
+       union all
+       select count(1) cnt from MANA0809.FORM_ACCESSIBILITY t1
+       where t1.emp_id=p_ParVal and t1.form_id=5638);
+
+
+   elsif p_pageVal1='REJECTOVERSEESDETAIL' then
+
+    v_str:=splitstr(p_ParVal,'~');
+
+   update TBL_GL_DAILY_INC_PROCESSED t
+
+      set t.inc_status=10,
+
+          t.oversee= v_str(3),
+
+          t.oversee_dt=sysdate,
+
+          t.remarks=v_str(2)
+
+    where
+
+          t.seq_number=v_str(1);
+
+   commit;
+
+      open QRY_RESULT for
+
+       select 111 from dual;
+
+     elsif  p_pageVal1 = 'get_access_dtl' then     ---Oversee report accessibility
+
+              OPEN      QRY_RESULT
+           FOR
+            select count(*) into v_cnt
+              from TBL_FZM_MASTER t, emp_master tt, branch_dtl_new b
+             where t.fzm_empcode = tt.EMP_CODE
+               and tt.STATUS_ID = 1
+               and b.reg_id = t.region_id
+               and tt.BRANCH_ID = b.BRANCH_ID
+               and t.fzm_empcode = p_ParVal;
+
+              ----------------------------------Edited By 101397----------------------
+  elsif p_pageVal1='GETLANGUAGES' then---get local languages
+   open QRY_RESULT for
+ select distinct(t.lang_id),t.lang_name from TBL_CALLCENTER_LANG t;
+
+elsif p_pageVal1='SAVECOUNT' then---Update local languages and call count
+  v_str:=splitstr(p_ParVal,'~');
+
+
+  update TBL_CALLCENTER_LANG t set t.call_count =v_str(2) where t.lang_id=v_str(1);
+
+    commit;
+      open QRY_RESULT for
+      select 111 from dual;
+
+
+    ------------------------------------------------------------
+
+
+            elsif  p_pageVal1 = 'get_fzm_id' then
+               OPEN      QRY_RESULT
+           FOR
+             select t.fzm_id into v_cnt1
+              from TBL_FZM_MASTER t, emp_master tt, branch_dtl_new b
+             where t.fzm_empcode = tt.EMP_CODE
+               and tt.STATUS_ID = 1
+               and b.reg_id = t.region_id
+               and tt.BRANCH_ID = b.BRANCH_ID
+               and t.fzm_empcode = p_ParVal;
+
+            elsif  p_pageVal1 = 'get_form_access_dtl' then
+               OPEN      QRY_RESULT
+               FOR
+                     select count(*)
+                       from form_accessibility
+                      where emp_id = p_ParVal
+                        and form_id = 5584 ;
+                 elsif  p_pageVal1 ='employee_post' then
+                      v_str :=splitstr(p_ParVal,'~');
+                  open QRY_RESULT for
+                  select e.post_id from employee_master e where e.emp_code=p_ParVal ;
+         elsif  p_pageVal1 ='emp_region' then
+            open QRY_RESULT for
+         select b.reg_id
+  from  branch_dtl_new b
+ where  b.BRANCH_ID=p_ParVal;
+
+ elsif p_pageVal1='HO_VIRTUAL_CNTAMNT_APPRV' then
+
+       select d.parmtr_value into local_lang from GENERAL_PARAMETER d where d.parmtr_id=2236;
+
+       v_str := array();
+    v_str := splitstr(local_lang, ',');
+    for i in 1..v_str.count loop
+           select count(*) into v_cnt
+             from GENERAL_PARAMETER t
+            where t.parmtr_id = 2236
+              and v_str(i) in (p_ParVal);
+              if v_cnt=1 then
+                open QRY_RESULT for
+                select 111 from dual;
+                exit;
+              end if;
+              end loop;
+            if v_cnt=0 then
+                open QRY_RESULT for
+                select 333 from dual;
+              end if;
+   elsif p_pageVal1='confirmvirtualcoupon' then
+     v_str:=splitstr(p_ParVal,'^');
+  update MANA0809.GENERAL_PARAMETER t set t.parmtr_value=v_str(1) where t.parmtr_id=2230 and t.module_id=7;
+  update MANA0809.GENERAL_PARAMETER t set t.parmtr_value=v_str(2) where t.parmtr_id=2231 and t.module_id=7;
+  commit;
+  open QRY_RESULT for
+  select '111' from dual;
+
+  elsif p_pageVal1='CUSTOMER_DETAILS_BH' then
+        open QRY_RESULT for
+        select cust_id, cust_name
+          from (select cust_id,
+                       cust_name,
+                       branch_id,
+                       outstanding,
+                       rownum as rn
+                  from (select t.cust_id,
+                               t.cust_name,
+                               b.branch_id,
+                               sum(t.balance) outstanding
+                          from MANA0809.TBL_PLEDGE_YESTERDAY_LIVE t
+                          left outer join mana0809.TBL_ONLINE_CUSTOMER_RETENTION f on (t.cust_id=f.cust_id),
+                               mana0809.branch_dtl_new            b
+                         where t.branch_id = b.BRANCH_ID
+                           and b.branch_id = p_ParVal
+                         group by t.cust_id, t.cust_name, b.branch_id
+                        having sum(t.balance) between 100000 and 200000
+                         order by outstanding desc)
+                         where cust_id not in (select a.cust_id
+                                 from MANA0809.tbl_online_customer_retention a
+                                where a.is_five_star_st=1))
+         where rn <= 15;
+         elsif p_pageVal1='CUSTOMER_DETAILS_AH' then
+        open QRY_RESULT for
+ select cust_id, cust_name
+          from (select cust_id,
+                       cust_name,
+                       branch_id,
+                       outstanding,
+                       rownum as rn
+                  from (select t.cust_id,
+                               t.cust_name,
+                               b.branch_id,
+                               sum(t.balance) outstanding
+                          from MANA0809.TBL_PLEDGE_YESTERDAY_LIVE t
+                          left outer join mana0809.TBL_ONLINE_CUSTOMER_RETENTION f on (t.cust_id=f.cust_id),
+                               mana0809.branch_dtl_new            b
+                         where t.branch_id = b.BRANCH_ID
+                           and b.area_id = p_ParVal
+                         group by t.cust_id, t.cust_name, b.branch_id
+                        having sum(t.balance) between 200000 and 500000
+                         order by outstanding desc)
+                         where cust_id not in (select a.cust_id
+                                 from MANA0809.tbl_online_customer_retention a
+                                where a.is_five_star_st=1))
+         where rn <= 15;
+         elsif p_pageVal1='CUSTOMER_DETAILS_RM' then
+        open QRY_RESULT for
+ select cust_id, cust_name
+          from (select cust_id,
+                       cust_name,
+                       branch_id,
+                       outstanding,
+                       rownum as rn
+                  from (select t.cust_id,
+                               t.cust_name,
+                               b.branch_id,
+                               sum(t.balance) outstanding
+                          from MANA0809.TBL_PLEDGE_YESTERDAY_LIVE t
+                          left outer join mana0809.TBL_ONLINE_CUSTOMER_RETENTION f on (t.cust_id=f.cust_id),
+                               mana0809.branch_dtl_new            b
+                         where t.branch_id = b.BRANCH_ID
+                           and b.reg_id = p_ParVal
+                  group by t.cust_id, t.cust_name, b.branch_id
+                 having sum(t.balance) between 500000 and 1000000
+                         order by outstanding desc)
+                         where cust_id not in (select a.cust_id
+                                 from MANA0809.tbl_online_customer_retention a
+                                where a.is_five_star_st=1))
+         where rn <= 15;
+         elsif p_pageVal1='CUSTOMER_DETAILS_FZM' then
+        open QRY_RESULT for
+ select cust_id, cust_name
+          from (select cust_id,
+                       cust_name,
+                       branch_id,
+                       outstanding,
+                       rownum as rn
+                  from (select t.cust_id,
+                               t.cust_name,
+                               b.branch_id,
+                               sum(t.balance) outstanding
+                          from MANA0809.TBL_PLEDGE_YESTERDAY_LIVE t
+                          left outer join mana0809.TBL_ONLINE_CUSTOMER_RETENTION h on (t.cust_id=h.cust_id),
+                               mana0809.branch_dtl_new            b,
+                         mana0809.tbl_fzm_master            f
+                  where t.branch_id = b.BRANCH_ID
+                    and b.reg_id = f.region_id
+                    and f.fzm_id = p_ParVal
+                  group by t.cust_id, t.cust_name, b.branch_id
+                 having sum(t.balance) between 1000000 and 2000000
+                         order by outstanding desc)
+                         where cust_id not in (select a.cust_id
+                                 from MANA0809.tbl_online_customer_retention a
+                                where a.is_five_star_st=1))
+         where rn <= 15;
+
+  elsif p_pageVal1='CUSTOMER_DETAILS_HO' then
+        open QRY_RESULT for
+ select cust_id, cust_name
+  from (select cust_id, cust_name, branch_id, outstanding, rownum as rn
+          from (select t.cust_id,
+                       t.cust_name,
+                       t.branch_id,
+                       sum(t.balance) outstanding
+                  from MANA0809.TBL_PLEDGE_YESTERDAY_LIVE t
+                  left outer join MANA0809.tbl_online_customer_retention d
+                    on (t.cust_id = d.cust_id)
+
+                 group by t.cust_id, t.cust_name, t.branch_id
+                having sum(t.balance) > 2000000
+                 order by outstanding desc)
+         where cust_id not in (select a.cust_id
+                                 from MANA0809.tbl_online_customer_retention a
+                                where a.crm <> p_ParVal) and cust_id not in ( select b.cust_id
+                                 from MANA0809.tbl_online_customer_retention b
+                                where b.is_five_star_st=1))
+ where rn <= 15;
+
+  elsif p_pageVal1='CUSTOMER_DATA_AUTO_FILL' then
+    open QRY_RESULT for
+    select c.name,
+       c.cust_id,
+       d.date_of_birth,
+       m.mrg_dt,
+       m.mail_id,
+       c.phone2,
+       b.BRANCH_NAME,
+       b.BRANCH_ID
+  from customer c
+  left outer join tbl_multiway_lead m
+    on c.cust_id = m.cust_id, customer_detail d, branch_dtl_new b
+ where c.cust_id = d.cust_id
+   and c.branch_id = b.BRANCH_ID
+   and c.cust_id = p_ParVal;
+elsif p_pageVal1='CHECKBOX_AUTO_FILL' then
+  select count(1) into oglcnt from MANA0809.TBL_ONLINE_GL_CUST_MST t where t.cust_id=p_ParVal and t.status_id=1;--OGL
+
+  select count(p.cust_id) into npacnt
+  from mana0809.pledge_status t, mana0809.pledge_master p
+ where t.pledge_no = p.pledge_no
+   and p.cust_id = p_ParVal
+   and t.status_id <> 0
+   and to_date(t.due_dt) + 90 < to_date(sysdate);  --NPA
+
+   select count(p.cust_id) into overduecnt
+  from mana0809.pledge_status t, mana0809.pledge_master p
+ where t.pledge_no = p.pledge_no
+   and p.cust_id = p_ParVal
+   and t.status_id <> 0
+   and to_date(t.due_dt) < to_date(sysdate); --Over due
+
+   select count(1) into auctioncnt from mana0809.auc_mst t where t.cust_id=p_ParVal;  --Auction
+   select count(1) into rebatecnt from mana0809.TBL_FULL_REBATE t  where t.cus_id=p_ParVal; --Rebate
+
+   open QRY_RESULT for
+
+   select oglcnt,npacnt,overduecnt,auctioncnt,rebatecnt from dual;
+
+   elsif p_pageVal1='RETENTION_CONFIRM' then
+   v_str:=splitstr(p_ParVal,'^');
+   select count(*) into v_cnt from TBL_ONLINE_CUSTOMER_RETENTION f where f.cust_id=v_str(1);
+   /*select count(*)
+     into v_cnt1
+     from TBL_ONLINE_CUSTOMER_RETENTION a
+    where a.cust_id = v_str(1)
+      and a.ogl_conversion = 1
+      and a.ogl_rebate=1
+      and a.overdue=1
+      and a.auction=1
+      and a.npa=1;
+
+      if v_cnt1=0 then
+        fivestar:=0;
+        else
+          fivestar:=1;
+        end if;*/
+
+   if v_cnt=0 then
+insert into TBL_ONLINE_CUSTOMER_RETENTION t
+  (t.cust_id,
+   t.ogl_conversion,
+   t.ogl_rebate,
+   t.overdue,
+   t.auction,
+   t.npa,
+   t.remarks,
+   t.crm,
+   t.last_update_dt,
+   t.is_five_star_st,
+   t.is_fr_star_st,
+   t.is_three_star_st,
+   t.branch_id)
+values
+  (v_str(1), v_str(2), v_str(6), v_str(4), v_str(5), v_str(3), v_str(7), v_str(11),sysdate,v_str(8),v_str(9),v_str(10),v_str(12));
+  commit;
+  else
+    update TBL_ONLINE_CUSTOMER_RETENTION t
+       set t.ogl_conversion = v_str(2),
+           t.ogl_rebate     = v_str(6),
+           t.overdue        = v_str(4),
+           t.auction        = v_str(5),
+           t.npa            = v_str(3),
+           t.remarks        = v_str(7),
+           t.crm            = v_str(11),
+           t.last_update_dt = sysdate,
+           t.is_five_star_st=v_str(8),
+           t.is_fr_star_st  =v_str(9),
+           t.is_three_star_st=v_str(10),
+           t.branch_id       = v_str(12)
+     where t.cust_id = v_str(1);
+           commit;
+     end if;
+     open QRY_RESULT for
+     select 111 from dual;
+     elsif p_pageVal1='HO_SALES_EMPCODE_CHECKING' then
+
+       select d.parmtr_value into local_lang from GENERAL_PARAMETER d where d.parmtr_id=2235;
+
+       v_str := array();
+    v_str := splitstr(local_lang, ',');
+    for i in 1..v_str.count loop
+           select count(*) into v_cnt
+             from GENERAL_PARAMETER t
+            where t.parmtr_id = 2235
+              and v_str(i) in (p_ParVal);
+              if v_cnt=1 then
+                open QRY_RESULT for
+                select 111 from dual;
+                exit;
+              end if;
+              end loop;
+            if v_cnt=0 then
+                open QRY_RESULT for
+                select 333 from dual;
+              end if;
+
+
+
+              elsif p_pageVal1='PLEDGE_DETAILS' then
+                sp_ogl_queries(p_pageVal2,p_ParVal,QRY_RESULT,ErrorStat,ErrorMsg);
+
+      elsif p_pageVal1='GETRMDATA' then
+     v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+       select t.rep_type,t.sub_id,t.report_name from TBL_DS_REPORTDTL t where t.menu_id=v_str(1) AND T.REP_ID=v_str(2);
+   elsif  p_pageVal1 ='emp_area' then
+            open QRY_RESULT for
+         select b.area_id
+  from  branch_dtl_new b
+ where  b.BRANCH_ID=p_ParVal;
+ elsif p_pageVal1='emp_zone' then
+     v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+  select f.fzm_id from mana0809.branch_dtl_new b,mana0809.tbl_fzm_master f
+where b.reg_id=f.region_id and b.BRANCH_ID=p_ParVal;
+
+
+ elsif p_pageVal1='requstautherisation' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select count(*) from employee_master e where e.emp_code= p_ParVal and e.post_id='10';
+
+elsif p_pageVal1='aprvautherisation' then
+            v_str:=splitstr(p_ParVal,'^');
+            open QRY_RESULT for
+            select count(*) from employee_master e where e.emp_code= p_ParVal and e.post_id='136';
+
+elsif p_pageVal1='penaltyreqst' then
+     v_str:=splitstr(p_pageVal2,'~');
+      open QRY_RESULT for
+    select t.branch_id ||'~'|| t.branch_count||'~'||t.penality_date||'~'|| t.bh_penality_amount as dts
+ from TBL_LEAD_PENALITY t
+  where t.branch_id=p_parval
+  and t.status=1
+ and to_char(t.penality_date) between v_str(1) and v_str(2) ;
+
+ elsif p_pageVal1='Requestconfirm' then
+     v_str:=splitstr(p_pageVal2,'~');
+     v_str1:=splitstr(p_ParVal,'~');
+     update TBL_LEAD_PENALITY t set t.status=3,
+     t.REQUESTED_BY=v_str1(2),
+     t.REQUESTED_DATE=sysdate,
+     t.REQUEST_REMARKS= v_str(3)
+ where  t.branch_id=v_str1(1)
+ and to_char(t.penality_date) between v_str(1) and v_str(2) ;
+ commit;
+ open   QRY_RESULT for
+ select '111'  from dual;
+
+ elsif p_pageVal1='penalitybrnch' then
+
+ select b.area_id into areaid from emp_master a,branch_dtl_new b  where a.BRANCH_ID=b.BRANCH_ID and  a.EMP_CODE=p_pageVal2;
+
+      open QRY_RESULT for
+
+      select -1, '---------------SELECT------------------' as dts
+  from dual
+  union all
+         select distinct a.BRANCH_ID,a.BRANCH_NAME
+from TBL_LEAD_PENALITY t,branch_dtl_new a
+ where a.BRANCH_ID=t.branch_id
+ and t.status=3
+ and a.area_id=areaid;
+
+ elsif p_pageVal1='penaltyreqstview' then
+    v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+    select distinct(t.branch_id) ||'~'|| t.branch_count||'~'||t.penality_date||'~'|| t.bh_penality_amount||'~'||t.ah_penality_amount||'~'||t.rm_penality_amount||'~'||t.fzm_penality_amount||'~'||t.ho_penality_amount ||'~'|| t.request_remarks
+as dts from TBL_LEAD_PENALITY t,branch_dtl_new tt
+  where t.branch_id=tt.BRANCH_ID
+  and t.status=3
+  and tt.BRANCH_ID=v_str(2)
+  and to_date(t.penality_date)=v_str(1);
+
+ elsif p_pageVal1='penltydate' then
+
+      open QRY_RESULT for
+      select  to_char(-1),'---------------SELECT------------------' as dts
+  from dual
+  union all
+  select to_char(penality_date),to_char(penality_date) from TBL_LEAD_PENALITY t
+  where t.status=3
+   and t.BRANCH_ID=p_parval;
+
+
+  elsif p_pageVal1='penalityaprvd' then
+    v_str:=splitstr(p_ParVal,'~');
+     v_str1:=splitstr(p_pageVal2,'~');
+     update TBL_LEAD_PENALITY t set t.status=4,
+     t.confirmed_by=v_str(2),
+     t.confirmed_date=sysdate,
+     t.approved_remarks=v_str1(1)
+ where  t.branch_id=v_str(1)
+ and to_date(t.penality_date)=v_str1(2);
+ commit;
+ open   QRY_RESULT for
+ select '111'  from dual;
+
+  elsif p_pageVal1='penalityreject' then
+     v_str:=splitstr(p_ParVal,'~');
+      v_str1:=splitstr(p_pageVal2,'~');
+     update TBL_LEAD_PENALITY t set t.status=5,
+     t.rejected_remarks=v_str1(1),
+    t.rejected_by=v_str(2),
+     t.rejected_date=sysdate
+ where  t.branch_id=v_str(1)
+ and to_date(t.penality_date)=v_str1(2);
+ commit;
+ open   QRY_RESULT for
+ select '111'  from dual;
+
+  elsif p_pageVal1='penaltyrptacess' then
+  v_str:=splitstr(p_ParVal,'~');
+            open QRY_RESULT for
+              select b.DEPARTMENT_ID, b.POST_ID, b.branch_id, k.area_id, k.reg_id, g.fzm_id from mana0809.emp_master b, mana0809.tbl_fzm_master g, mana0809.branch_dtl_new k where b.BRANCH_ID = k.BRANCH_ID and k.reg_id = g.region_id and b.EMP_CODE = v_str(1) and b.STATUS_ID = 1 and k.BRANCH_ID >= 0;
+
+ elsif p_pageVal1='getrpt' then
+
+            open QRY_RESULT for
+            select T.MENU_ID,T.REPORT_NAME from TBL_DS_REPORTDTL t WHERE T.REP_ID=81 and t.status_id=1 order by 2;
+
+
+
+   elsif p_pageVal1='salesreport' then
+         v_str:=splitstr(p_ParVal,'~');
+      select  T.REPORT_QUERY into v_res from TBL_DS_REPORTDTL t where t.menu_id=v_str(1);
+
+       if  INSTR(UPPER(v_res), 'DATEM1') > 0 and  INSTR(UPPER(v_res), 'DATEM2') > 0 then
+         v_res:=replace(v_res,'dateM1',v_str(2));
+          v_res:=replace(v_res,'dateM2',v_str(3));
+          elsif  INSTR(UPPER(v_res), 'DATEM1') > 0  then
+         v_res:=replace(v_res,'dateM1',v_str(2));
+         elsif  INSTR(UPPER(v_res), 'DATEM2') > 0  then
+         v_res:=replace(v_res,'dateM2',v_str(3));
+         end if;
+           if  INSTR(UPPER(v_res), 'UNXID') > 0  then
+         v_res:=replace(v_res,'unxid',v_str(4));
+         end if;
+
+
+          if  INSTR(UPPER(v_res), 'EMPXID') > 0  then
+         v_res:=replace(v_res,'empxid',v_str(6));
+         end if;
+
+      OPEN QRY_RESULT FOR
+      v_res ;
+
+      elsif p_pageVal1='ANNUAL_DAY_CELEB_CHECK' then
+         open QRY_RESULT for
+         select case
+                  when to_char(inauguration_dt, 'MM-DD') >=
+                       to_char(sysdate + 3, 'MM-DD') then
+                   1
+                  else
+                   0
+                end DAYS
+           from branch_master t
+          where t.branch_id = p_ParVal;
+
+    elsif p_pageVal1='ANNUAL_DAY_CELEB_CONFRM' then
+      v_str:=splitstr(p_ParVal,'^');
+     select count(*)
+       into v_cnt
+       from TBL_BRANCH_ANNUAL_DAY_CELEB t
+      where t.branch_id = v_str(9)
+        and trunc(t.celeb_dt) = v_str(1)
+        and t.requester_post in (10, 16, -265, 1,491,53,239,240,622,-250);
+
+        select case
+                  when to_char(inauguration_dt, 'MM-DD') >=
+                       to_char(sysdate + 3, 'MM-DD') then
+                   1
+                  else
+                   0
+                end into v_cnt1
+           from branch_master t
+          where t.branch_id = v_str(9);
+
+        V_annual_day_id:= SEQ_ANNUAL_DAY_ID.NEXTVAL;
+
+        if v_cnt=0 then
+          if v_cnt1=1 then
+             insert into TBL_BRANCH_ANNUAL_DAY_CELEB t
+  (t.branch_id,
+   t.annual_day_id,
+   t.req_emp_code,
+   t.agenda,
+   t.celeb_dt,
+   t.requester_post,
+   t.no_of_participants,
+   t.chief_guest,
+   t.apprv_rm_emp,
+   t.annual_day_status,
+   t.remarks,
+   t.updated_by,
+   t.updated_on,
+   t.status,
+   t.apprvd_on,
+   t.rm_remarks,
+   t.rejectd_on,
+   t.entered_on,
+   t.from_tm_hrs,
+   t.from_tm_mts,
+   t.from_tm_ampm)
+values
+  (v_str(9),
+   V_annual_day_id,
+   v_str(2),
+   'Annual Day Celebration',
+   v_str(1),
+   v_str(10),
+   v_str(3),
+   v_str(4),
+   '',
+   0,
+   v_str(5),
+   '',
+   '',
+   1,
+   '',
+   '',
+   '',
+   sysdate,
+   v_str(6),
+   v_str(7),
+   v_str(8));
+   commit;
+open QRY_RESULT for
+         select '111' from dual;
+         end if;
+         else
+           open QRY_RESULT for
+         select '333' from dual;
+
+          end if;
+
+
+         elsif p_pageVal1='ANNUAL_DAY_BRANCH_SELECT' then
+           open QRY_RESULT for
+           select b.BRANCH_ID, b.BRANCH_NAME
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t, mana0809.branch_dtl_new b
+ where t.branch_id = b.BRANCH_ID
+   and t.branch_id in
+       (select b1.BRANCH_ID
+          from branch_dtl_new b1
+         where b1.reg_id in (select b2.reg_id
+                               from branch_dtl_new b2, employee_master e
+                              where b2.BRANCH_ID = e.branch_id
+                                and e.emp_code = p_ParVal
+                                and e.status_id = 1
+                                and e.post_id in (199, -249)))
+ and t.status = 1 and t.annual_day_status=0;
+
+ elsif p_pageVal1='ANNUAL_DAY_AUTOFILL_RM' then
+
+ open QRY_RESULT for
+ select t.celeb_dt, t.req_emp_code, t.no_of_participants, t.chief_guest
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t
+ where t.branch_id = p_ParVal
+   and t.status = 1
+   and t.annual_day_status=0;
+
+   elsif p_pageVal1='ANNUAL_DAY_CELEB_APPRV' then
+     v_str:=splitstr(p_ParVal,'^');
+     select count(*)
+       into v_cnt
+       from TBL_BRANCH_ANNUAL_DAY_CELEB t
+      where t.branch_id = v_str(1)
+        and t.status = 2
+        and t.annual_day_status = 0;
+    if v_cnt =0 then
+      update TBL_BRANCH_ANNUAL_DAY_CELEB t
+         set t.status       = 2,
+             t.apprv_rm_emp = v_str(2),
+             t.apprvd_on    = sysdate,
+             t.rm_remarks   = v_str(3)
+       where t.branch_id = v_str(1)
+         and t.status = 1
+         and t.annual_day_status = 0;
+       commit;
+       open QRY_RESULT for
+       select '111' from dual;
+       else
+         open QRY_RESULT for
+       select '333' from dual;
+      end if;
+  elsif p_pageVal1='ANNUAL_DAY_CELEB_REJECT' then
+     v_str:=splitstr(p_ParVal,'^');
+     select count(*)
+       into v_cnt
+       from TBL_BRANCH_ANNUAL_DAY_CELEB t
+      where t.branch_id = v_str(1)
+        and t.status = 3
+        and t.annual_day_status = 0;
+    if v_cnt =0 then
+      update TBL_BRANCH_ANNUAL_DAY_CELEB t
+         set t.status       = 3,
+             t.apprv_rm_emp = v_str(2),
+             t.rejectd_on    = sysdate,
+             t.rm_remarks   = v_str(3)
+       where t.branch_id = v_str(1)
+         and t.status = 1
+         and t.annual_day_status = 0;
+       commit;
+       open QRY_RESULT for
+       select '111' from dual;
+       else
+         open QRY_RESULT for
+       select '333' from dual;
+      end if;
+  elsif p_pageVal1='ANNUAL_DAY_RQST_CHECK' then
+    open QRY_RESULT for
+        select count(*)
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t
+ where t.branch_id = p_ParVal
+   and t.status in (1, 2)
+   and t.annual_day_status = 0;
+
+   elsif p_pageVal1='ANNUAL_DAY_UPDATE_DROP' then
+     open QRY_RESULT for
+     select t.annual_day_id,
+       to_char(to_date(t.celeb_dt)) || '~' || b.BRANCH_NAME || '~' ||
+       t.agenda
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t, branch_dtl_new b
+ where b.BRANCH_ID = t.branch_id
+   and t.requester_post in (10, 16, -265, 1, 491, 53, 239, 240, 622, -250)
+   and t.branch_id = p_ParVal
+   and trunc(t.celeb_dt) <= trunc(sysdate)
+   and t.status = 2
+   and t.annual_day_status = 0;
+
+   elsif p_pageVal1='ANNUAL_DAY_UPDATE_AUTOFILL' then
+     open QRY_RESULT for
+     select t.agenda,t.req_emp_code,b.BRANCH_NAME,t.celeb_dt
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t,branch_dtl_new b
+ where t.branch_id=b.BRANCH_ID
+   and t.annual_day_id = p_ParVal
+   and t.status = 2
+   and t.annual_day_status=0;
+
+   elsif p_pageVal1='ANNUAL_DAY_ADD_CUSTOMER_DETAILS' then
+     v_str:=splitstr(p_ParVal,'^');
+
+select count(*)
+  into v_cnt
+  from TBL_ANNUALDAY_CUST_DETAILS c
+ where c.annual_day_id = v_str(7)
+   and substr(c.phone, -10) = substr(v_str(2), -10)
+   and trunc(c.entered_on) = trunc(sysdate);
+
+if v_cnt = 0 then
+  insert into TBL_ANNUALDAY_CUST_DETAILS t
+    (t.branch_id,
+     t.entered_on,
+     t.annual_day_id,
+     t.updated_by,
+     t.cust_name,
+     t.phone,
+     t.mail_id,
+     t.birth_date,
+     t.marital_sts,
+     t.marriage_dt,
+     t.status_id,
+     t.cust_status)
+  values
+    (v_str(8),
+     sysdate,
+     v_str(7),
+     v_str(9),
+     v_str(1),
+     v_str(2),
+     v_str(3),
+     v_str(4),
+     v_str(5),
+     v_str(6),
+     0,
+     0);
+  commit;
+  open QRY_RESULT for
+    select '111' from dual;
+else
+  open QRY_RESULT for
+    select '333' from dual;
+end if;
+
+elsif p_pageVal1='ANNUAL_DAY_CUSTOMERDATA_BIND' then
+     open QRY_RESULT for
+      select nvl(t.cust_name, 'NIL'),
+        nvl(t.phone, 'NIL'),
+        nvl(t.mail_id, 'NIL'),
+        nvl(to_char(t.birth_date, 'DD-MM-YYYY'), 'NIL') bday,
+        nvl(to_char(t.marriage_dt, 'DD-MM-YYYY'), 'NIL') mrge_dt
+   from TBL_ANNUALDAY_CUST_DETAILS t
+  where t.annual_day_id = p_ParVal;
+
+elsif p_pageVal1='ANNUAL_DAY_PARTICIPANTS_COUNT' then
+  v_str:=splitstr(p_ParVal,'^');
+select count(*)
+    into v_cnt1
+    from TBL_ANNUALDAY_CUST_DETAILS d
+   where d.annual_day_id = v_str(1);
+
+   if v_cnt1=v_str(2) then
+     open QRY_RESULT for
+    select '333' from dual;
+     elsif v_cnt1=0 then
+       open QRY_RESULT for
+    select '222' from dual;
+       else
+       open QRY_RESULT for
+    select '111' from dual;
+     end if;
+
+     elsif p_pageVal1='ANNUAL_DAY_REMOVE_DATA' then
+  v_str:=splitstr(p_ParVal,'^');
+ delete from TBL_ANNUALDAY_CUST_DETAILS t where t.annual_day_id=v_str(1) and t.phone=v_str(2);
+   commit;
+
+   open QRY_RESULT for
+    select '111' from dual;
+
+    elsif p_pageVal1='ANNUAL_DAY_UPDATE_CONFIRM' then
+  v_str:=splitstr(p_ParVal,'^');
+
+  select count(*)
+    into v_cnt
+    from TBL_BRANCH_ANNUAL_DAY_CELEB t
+   where t.annual_day_id = v_str(1)
+     and t.branch_id = v_str(2)
+     and t.annual_day_status = 1;
+  if v_cnt=0 then
+    update TBL_BRANCH_ANNUAL_DAY_CELEB d
+       set d.annual_day_status = 1,
+           d.updated_by        = v_str(3),
+           d.updated_on        = sysdate
+     where d.annual_day_id = v_str(1)
+       and d.branch_id = v_str(2)
+       and d.annual_day_status = 0;
+
+       commit;
+
+       update TBL_ANNUALDAY_CUST_DETAILS f
+          set f.status_id = 1
+        where f.annual_day_id = v_str(1)
+          and f.branch_id = v_str(2);
+          commit;
+
+          open QRY_RESULT for
+    select '111' from dual;
+
+          else
+           open QRY_RESULT for
+    select '333' from dual;
+    end if;
+
+   commit;
+
+   open QRY_RESULT for
+    select '111' from dual;
+
+    elsif p_pageVal1='ANNUAL_DAY_HOURS' then
+    open QRY_RESULT for
+    select '0', '00'
+  from dual
+union all
+Select to_char(Rownum), case when  length (to_char(Rownum))=2
+then to_char(Rownum) else '0'||to_char(Rownum) end
+  From dual
+Connect By Rownum <= 12;
+
+elsif p_pageVal1='ANNUAL_DAY_MINUTES' then
+    open QRY_RESULT for
+    select '0', '00'
+  from dual
+union all
+Select to_char(Rownum), case when  length (to_char(Rownum))=2
+then to_char(Rownum) else '0'||to_char(Rownum) end
+  From dual
+Connect By Rownum <= 59;
+
+elsif p_pageVal1='ANNUAL_DAY_INVIT_CARD' then
+  open QRY_RESULT for
+  select b.branch_name,
+       case
+         when round(months_between(sysdate, b.inauguration_dt) / 12) = 11 then
+          round(months_between(sysdate, b.inauguration_dt) / 12) || 'th'
+         else
+          case
+            when round(months_between(sysdate, b.inauguration_dt) / 12) = 12 then
+             round(months_between(sysdate, b.inauguration_dt) / 12) || 'th'
+            else
+             case
+               when round(months_between(sysdate, b.inauguration_dt) / 12) = 13 then
+                round(months_between(sysdate, b.inauguration_dt) / 12) || 'th'
+               else
+                case
+                  when substr(to_char(round(months_between(sysdate, b.inauguration_dt) / 12)),
+                              -1) = 1 then
+                   round(months_between(sysdate, b.inauguration_dt) / 12) || 'st'
+                  else
+                   case
+                     when substr(to_char(round(months_between(sysdate, b.inauguration_dt) / 12)),
+                                 -1) = 2 then
+                      round(months_between(sysdate, b.inauguration_dt) / 12) || 'nd'
+                     else
+                      case
+                        when substr(to_char(round(months_between(sysdate, b.inauguration_dt) / 12)),
+                                    -1) = 3 then
+                         round(months_between(sysdate, b.inauguration_dt) / 12) || 'rd'
+                        else
+                         round(months_between(sysdate, b.inauguration_dt) / 12) || 'th'
+                      end
+                   end
+                end
+             end
+          end
+       end as Age,
+       to_char(t.celeb_dt, 'Day') as DAYS,
+       to_char(t.celeb_dt, 'DD') as Dates,
+       to_char(t.celeb_dt, 'Month') as Monthss,
+       to_char(t.celeb_dt, 'YYYY') as Years,
+       (case
+         when length(to_char(t.from_tm_hrs)) = 2 then
+          to_char(t.from_tm_hrs)
+         else
+          0 || to_char(t.from_tm_hrs)
+       end) as FROM_HRS,
+       (case
+         when length(to_char(t.from_tm_mts)) = 2 then
+          to_char(t.from_tm_mts)
+         else
+          0 || to_char(t.from_tm_mts)
+       end) as FROM_MINUTES,
+       (case
+         when t.from_tm_ampm = 1 then
+          'AM'
+         else
+          'PM'
+       end) AM_PM
+  from TBL_BRANCH_ANNUAL_DAY_CELEB t, branch_master b
+ where b.branch_id = t.branch_id
+   and t.branch_id = p_ParVal
+   and t.status = 1
+   and t.annual_day_status = 0;
+
+   ---B crf 101070\\BA Pledge Report---
+
+   elsif p_pageVal1 = 'Pledge_Rpt' then
+OPEN QRY_RESULT
+FOR
+SELECT b.rpt_id,b.rpt_name
+FROM tbl_BA_PledgeReport b;
+
+---CRF _101720 Digital Library Modifications
+             elsif p_pageVal1='GET_LANG' then
+      open   QRY_RESULT for
+        SELECT '-1' as col_lang_id ,'----SELECT-----' as col_lang
+          FROM   DUAL
+          UNION ALL
+        select distinct l.col_lang_id, l.col_lang
+          from tbl_local_language l, DMS.TBL_DIGITAL_IMG i
+         where i.langid = l.col_lang_id
+           and i.image_id = p_ParVal
+           order by col_lang ;
+
+              ---CRF _101720 Digital Library Modifications
+ --nidhish---------------------360799,366371
+  elsif p_pageVal1='Distapprovedropdown' then
+    open QRY_RESULT for
+    select DISTINCT t.branch_id from TBL_BRANCH_BANK_DIST t where t.branch_id in( SELECT DISTINCT(B.BRANCH_ID) FROM BRANCH_DTL_NEW B WHERE B.area_id IN (SELECT T.AREA_ID FROM BRANCH_DTL_NEW T WHERE T.BRANCH_ID IN (SELECT E.BRANCH_ID FROM EMPLOYEE_MASTER E WHERE E.EMP_CODE = p_pageVal2 AND E.POST_ID = 136)))and t.status=1 ;
+
+
+
+
+
+ elsif p_pageVal1='Distapproveform' then
+    open QRY_RESULT for
+      --select t.bank_id,t.bank_name,t.tra_date,t.bank_dist,SEQ_ID from TBL_BRANCH_BANK_DIST t where t.status=1 ;
+      select t.bank_id,t.bank_name,t.tra_date,t.bank_dist,SEQ_ID from TBL_BRANCH_BANK_DIST t where t.status=1 and t.branch_id=p_pageVal2;
+
+
+
+      elsif p_pageVal1='bankapprovedet' then
+
+
+      --update TBL_BRANCH_BANK_DIST t set t.status=2 where t.seq_id=p_pageVal2;
+
+         v_str1 := splitstr(p_pageVal2,'~');
+
+            update TBL_BRANCH_BANK_DIST t set t.status=2,t.Appr_Date=sysdate,t.appr_id=v_str1(2) where t.seq_id=v_str1(1);
+        commit;
+elsif  p_pageval1='EMPLOYDT' then
+       v_str:=splitstr(p_ParVal,'~');
+            open QRY_RESULT for
+             select b.DEPARTMENT_ID, b.POST_ID, b.branch_id, k.area_id, k.reg_id, g.fzm_id from mana0809.emp_master b, mana0809.tbl_fzm_master g, mana0809.branch_dtl_new k where b.BRANCH_ID = k.BRANCH_ID and k.reg_id = g.region_id and b.EMP_CODE = v_str(1) and b.STATUS_ID = 1 and k.BRANCH_ID >= 0;
+ elsif p_pageVal1='SelectBankType' then
+    open QRY_RESULT for
+      select t.type_id,t.type_name from TBL_BANKTYPE t;
+
+  elsif p_pageVal1='SelectBankName' then
+    open QRY_RESULT for
+      select t.slno,t.bank from TBL_BANK_LIST t;
+
+
+      elsif p_pageVal1='insertbankdet' then
+
+      v_str1 := splitstr(p_pageVal2,'~');
+
+        -- for i in 1..v_str.Count-1
+         --loop
+        --  v_res1 := splitstr(v_str(i),'¶');
+        v_seq_id := dist_sequence.NEXTVAL;
+
+          insert into TBL_BRANCH_BANK_DIST(branch_id,type_id,bank_id,bank_name,user_id,tra_date,Status,bank_dist,SEQ_ID)
+          values((v_str1(1)),v_str1(2),v_str1(3),v_str1(4),v_str1(5),sysdate,1,v_str1(6),v_seq_id);
+        --end loop;
+       commit;
+  --end---------------------360799,366371
+
+               elsif p_pageVal1 = 'getpost1' then
+
+                    open QRY_RESULT for
+
+                  select e.POST_ID  from emp_master e where e.EMP_CODE=p_ParVal;
+
+                   elsif p_pageVal1 = 'getBH' then
+
+                      v_str := splitstr(p_pageVal2, '^');
+                    open QRY_RESULT for
+
+                     select distinct t.loan_no,
+                      t.branch_id,
+                      a.bank,
+                      t.takeover_amt,
+                      tt.total_wt,
+                      to_char(t.tra_dt),
+                      decode(t.payment_methode,
+                             1,
+                             'Neft',
+                             2,
+                             'Cash',
+                             3,
+                             'Cash paid') payment_methode,
+                      decode(t.status_id,
+                             0,
+                             'settled',
+                             3,
+                             'Approved-pledge_pending',
+                             9,
+                             'Rejected',
+                             10,
+                             'Rejected',
+                             11,
+                             'Request-Reject',
+                             12,
+                             'Recommend-Reject',
+                             13,
+                             'Approved-Reject',
+                             20,
+                             'Pledge_confirmed',
+                             -1,
+                             'Request',
+                             1,
+                             'Request',
+                             2,
+                             'Recommend',
+                             4,
+                             'Loan confirmed') Status
+
+        from mana0809.TAKEOVERLOAN_MST t,
+             mana0809.TAKEOVERLOAN_DTL tt,
+             mana0809.tbl_bank_list    a
+       where to_date(tra_dt) between v_str(1) and v_str(2)
+         and tt.loan_no = t.loan_no
+         and t.branch_id=p_ParVal
+         and t.payment_methode=1
+         and to_char(a.slno) = tt.bank_name;
+
+
+              elsif p_pageVal1 = 'getAH' then
+
+
+                select b.area_id into areaid from branch_dtl_new b
+              where  b.BRANCH_ID= p_ParVal;
+
+                      v_str := splitstr(p_pageVal2, '^');
+                    open QRY_RESULT for
+
+                     select distinct t.loan_no,
+                      t.branch_id,
+                      a.bank,
+                      t.takeover_amt,
+                      tt.total_wt,
+                      to_char(t.tra_dt),
+                      decode(t.payment_methode,
+                             1,
+                             'Neft',
+                             2,
+                             'Cash',
+                             3,
+                             'Cash paid') payment_methode,
+                      decode(t.status_id,
+                             0,
+                             'settled',
+                             3,
+                             'Approved-pledge_pending',
+                             9,
+                             'Rejected',
+                             10,
+                             'Rejected',
+                             11,
+                             'Request-Reject',
+                             12,
+                             'Recommend-Reject',
+                             13,
+                             'Approved-Reject',
+                             20,
+                             'Pledge_confirmed',
+                             -1,
+                             'Request',
+                             1,
+                             'Request',
+                             2,
+                             'Recommend',
+                             4,
+                             'Loan confirmed') Status
+
+        from mana0809.TAKEOVERLOAN_MST t,
+             mana0809.TAKEOVERLOAN_DTL tt,
+             mana0809.tbl_bank_list    a,
+             branch_dtl_new b
+
+       where to_date(tra_dt) between v_str(1) and v_str(2)
+         and tt.loan_no = t.loan_no
+         and t.payment_methode=1
+         and b.BRANCH_ID=t.branch_id
+         and b.area_id=areaid
+         and to_char(a.slno) = tt.bank_name;
+
+          elsif p_pageVal1 = 'getRM' then
+
+            select b.reg_id into regid from branch_dtl_new b
+              where  b.BRANCH_ID= p_ParVal;
+
+                      v_str := splitstr(p_pageVal2, '^');
+                    open QRY_RESULT for
+
+                     select distinct t.loan_no,
+                      t.branch_id,
+                      a.bank,
+                      t.takeover_amt,
+                      tt.total_wt,
+                      to_char(t.tra_dt),
+                      decode(t.payment_methode,
+                             1,
+                             'Neft',
+                             2,
+                             'Cash',
+                             3,
+                             'Cash paid') payment_methode,
+                      decode(t.status_id,
+                             0,
+                             'settled',
+                             3,
+                             'Approved-pledge_pending',
+                             9,
+                             'Rejected',
+                             10,
+                             'Rejected',
+                             11,
+                             'Request-Reject',
+                             12,
+                             'Recommend-Reject',
+                             13,
+                             'Approved-Reject',
+                             20,
+                             'Pledge_confirmed',
+                             -1,
+                             'Request',
+                             1,
+                             'Request',
+                             2,
+                             'Recommend',
+                             4,
+                             'Loan confirmed') Status
+
+        from mana0809.TAKEOVERLOAN_MST t,
+             mana0809.TAKEOVERLOAN_DTL tt,
+             mana0809.tbl_bank_list    a,
+             branch_dtl_new b
+
+       where to_date(tra_dt) between v_str(1) and v_str(2)
+         and tt.loan_no = t.loan_no
+          and t.payment_methode=1
+         and b.BRANCH_ID=t.branch_id
+         and b.reg_id=regid
+         and to_char(a.slno) = tt.bank_name;
+
+            elsif p_pageVal1 = 'getFZM' then
+
+             select f.fzm_id into fzmid from  branch_dtl_new b,tbl_fzm_master f
+              where b.reg_id=f.region_id and b.BRANCH_ID=p_ParVal;
+
+                      v_str := splitstr(p_pageVal2, '^');
+                    open QRY_RESULT for
+
+                     select distinct t.loan_no,
+                      t.branch_id,
+                      a.bank,
+                      t.takeover_amt,
+                      tt.total_wt,
+                      to_char(t.tra_dt),
+                      decode(t.payment_methode,
+                             1,
+                             'Neft',
+                             2,
+                             'Cash',
+                             3,
+                             'Cash paid') payment_methode,
+                      decode(t.status_id,
+                             0,
+                             'settled',
+                             3,
+                             'Approved-pledge_pending',
+                             9,
+                             'Rejected',
+                             10,
+                             'Rejected',
+                             11,
+                             'Request-Reject',
+                             12,
+                             'Recommend-Reject',
+                             13,
+                             'Approved-Reject',
+                             20,
+                             'Pledge_confirmed',
+                             -1,
+                             'Request',
+                             1,
+                             'Request',
+                             2,
+                             'Recommend',
+                             4,
+                             'Loan confirmed') Status
+
+        from mana0809.TAKEOVERLOAN_MST t,
+             mana0809.TAKEOVERLOAN_DTL tt,
+             mana0809.tbl_bank_list    a,
+             branch_dtl_new b,
+             tbl_fzm_master f
+
+       where to_date(tra_dt) between v_str(1) and v_str(2)
+         and tt.loan_no = t.loan_no
+         and b.BRANCH_ID=t.branch_id
+         and f.region_id=b.reg_id
+         and b.reg_id=regid
+         and f.fzm_id=fzmid
+          and t.payment_methode=1
+         and to_char(a.slno) = tt.bank_name;
+
+
+       elsif p_pageVal1 = 'getreq' then
+
+         open QRY_RESULT for
+
+      select count(*)
+        from FORM_ACCESSIBILITY a
+       where a.form_id = 6107
+         and a.emp_id = p_ParVal;
+
+
+
+  elsif p_pageVal1 = 'getHO' then
+
+    v_str := splitstr(p_ParVal, '^');
+
+    open QRY_RESULT for
+
+      select distinct t.loan_no,
+                      t.branch_id,
+                      a.bank,
+                      t.takeover_amt,
+                      tt.total_wt,
+                      to_char(t.tra_dt),
+                      decode(t.payment_methode,
+                             1,
+                             'Neft',
+                             2,
+                             'Cash',
+                             3,
+                             'Cash paid') payment_methode,
+                      decode(t.status_id,
+                             0,
+                             'settled',
+                             3,
+                             'Approved-pledge_pending',
+                             9,
+                             'Rejected',
+                             10,
+                             'Rejected',
+                             11,
+                             'Request-Reject',
+                             12,
+                             'Recommend-Reject',
+                             13,
+                             'Approved-Reject',
+                             20,
+                             'Pledge_confirmed',
+                             -1,
+                             'Request',
+                             1,
+                             'Request',
+                             2,
+                             'Recommend',
+                             4,
+                             'Loan confirmed') Status
+
+        from mana0809.TAKEOVERLOAN_MST t,
+             mana0809.TAKEOVERLOAN_DTL tt,
+             mana0809.tbl_bank_list    a
+       where to_date(tra_dt) between v_str(1) and v_str(2)
+         and tt.loan_no = t.loan_no
+         and t.payment_methode=1
+         and to_char(a.slno) = tt.bank_name;
+
+
+
+ elsif p_pageVal1 = 'checkcustomer' then
+  open QRY_RESULT for
+select count(t.cust_id) from  customer t where  t.cust_id = p_pageVal2;
+
+
+elsif p_pageVal1 = 'GETINVENTORY' then
+  open QRY_RESULT for
+ select 'Select Inventory' from dual  union all Select t.inv_id from Tbl_Gln_Inventory_Master t, tbl_online_ctran_entries b
+ where t.plgno = b.new_pledge_no and t.status in (1, 2) and t.cust_id = p_pageVal2 and b.col_pay_mode in (4, 5)
+ union select s.inventory  from tbl_gl_tab_loan g,pledge_status s
+where g.pledge_no = s.pledge_no And s.status_id <> 0  and g.cust_id=p_pageVal2 order by 1 desc;
+
+elsif p_pageVal1 = 'GETPLEDGES' then
+  open QRY_RESULT for
+select t.plgno,to_date(p.tra_dt),p.net_weight,p.pledge_val,c.phone2 from Tbl_Gln_Inventory_Master t,pledge_master p,customer c
+ where t.plgno=p.pledge_no and p.cust_id=c.cust_id  and t.status in (1, 2) and t.inv_id= p_pageVal2;
+
+ elsif p_pageVal1 = 'Reqacess' then
+
+         open QRY_RESULT for
+
+      select count(*)
+        from FORM_ACCESSIBILITY a
+       where a.form_id = 5584
+         and a.emp_id = p_ParVal;
+      ---------------------my changes Nidhish--------------------------------
+
+   /*elsif p_pageVal1 = 'SMSSend' then
+     v_str:=splitstr(p_pageVal2, '~');
+      v_str1:=splitstr(p_ParVal, '~');
+     for v_cnt in 1 .. v_str.count-1 loop
+         insert into TBL_AIRTEL_BULK_SMS (MOBILE_NO,MSGID,TEMPID,Send_Dt)
+
+         values(v_str(v_cnt),v_str1(1),v_str1(2),sysdate);
+        end loop;
+
+        open QRY_RESULT for
+        select 111 from dual;
+      elsif p_pageVal1 = 'GetSMSID' then
+
+      open QRY_RESULT for
+
+      select distinct t.msgid from TBL_AIRTEL_BULK_SMS t
+where t.del_status is null;
+   elsif p_pageVal1 = 'UpdateMsgStatus' then
+     v_str:=splitstr(p_pageVal2, '~');
+
+   update TBL_AIRTEL_BULK_SMS t set t.del_status=v_str(2) where t.mobile_no=v_str(1) and t.msgid=v_str(3);
+
+   commit;
+ open QRY_RESULT for  select '111' from dual;*/
+--------------------End Nidhish----------------------------------------------
+----111271------------------dilson
+    elsif p_pageVal1 = 'entrance' then
+      open QRY_RESULT for
+      select f.emp_id from FORM_ACCESSIBILITY f where f.form_id=7120 and f.emp_id=p_pageVal2;
+
+    elsif p_pageVal1 = 'Bulk_ogl' then
+
+
+      select count(x.status_id) into  v_cnt2  from mana0809.tbl_online_gl_cust_mst x where x.status_id=2;
+      select count(y.cur_status) into v_slno  from  mana0809.TBL_OGL_BLOCK y where y.cur_status=0;
+
+    if(v_cnt2 > 0 or v_slno > 0)then
+
+       update mana0809.tbl_online_gl_cust_mst t set t.status_id=1 where t.status_id=2 ;
+       commit;
+        update MANA0809.TBL_OGL_BLOCK t set t.revert_date=sysdate,t.cur_status=1 where t.cur_status=0 ;
+        commit;
+        open QRY_RESULT for  select '111' from dual;
+
+    else
+
+        open QRY_RESULT for  select '222' from dual;
+        end if;
+
+
+    ---------------------dilson
+
+-----------Dilson--------
+/*elsif p_pageVal1 = 'ATTACHMENT_MINUTES' then
+meet_seqq :=MEETING_ID.NEXTVAL;
+insert into TBL_ATTACH_DATAMINUTES t(t.meeting_id,t.date_time,t.emp_code) values(meet_seqq,to_date(sysdate),p_pageVal2);
+commit;
+open QRY_RESULT for select meet_seqq from dual;*/
+
+elsif p_pageval1 = 'getdataa' then
+v_str := splitstr(p_pageVal2, '~');
+open QRY_RESULT for
+select t.MEETING_ID,t.FILENAME
+from dms.tbl_attach_minutes t
+where to_date(t.m_date) between v_str(1) and v_str(2);
+
+
+elsif p_pageval1 = 'getblob' then
+open QRY_RESULT for
+select t.atht_file,t.filename,t.extension
+from dms.tbl_attach_minutes t
+where t.meeting_id = p_pageVal2;
+
+
+
+elsif p_pageVal1 = 'view_status' then
+--update tbl_attach_dataminutes t set t.viewed=1 where t.meeting_id=p_pageVal2;
+insert into TBL_ATTACH_DATAMINUTES values(p_pageVal2,sysdate,p_ParVal,1,0);
+commit;
+open QRY_RESULT for select '111' from dual;
+
+elsif p_pageVal1 = 'confirm_status' then
+update tbl_attach_dataminutes t set t.confirmed=1 where t.meeting_id=p_pageVal2;
+commit;
+open QRY_RESULT for select '111' from dual;
+         ---------------------End Dilson----------
+         elsif p_pageVal1 = 'GETPOST5' then
+
+    --v_str:=splitstr(p_ParVal,'~');
+    OPEN QRY_RESULT FOR
+      select p.post_id, p.post_name
+        from post_mst p, employee_master e
+       where e.post_id = p.post_id
+         and e.status_id = 1
+         and e.emp_code = p_ParVal;
+
+    --select p.post_id into V_pid from post_mst p, employee_master e where e.post_id=p.post_id and e.emp_code=v_str(1);
+
+  elsif p_pageVal1 = 'CANCELLEDCUST' then
+
+    select b.BRANCH_ID
+    into V_brdtl2
+      from mana0809.branch_dtl_new b, mana0809.employee_master e
+     where b.BRANCH_ID = e.branch_id
+       and e.emp_code = p_pageVal2;
+
+    OPEN QRY_RESULT FOR
+
+      select distinct d.req_id || '~' || c.cust_name Cancelled_Customer,
+                      d.req_status,
+                      b.BRANCH_NAME,
+                      b.BRANCH_ID,
+                      d.schedule_time
+        from mana0809.tbl_doorstep_req_dtl  d,
+             mana0809.tbl_doorstep_cust_mst c,
+             mana0809.branch_detail_new     b,
+             mana0809.employee_master       e
+
+       where d.customer_id = c.cust_id
+         and d.ass_branch = b.branch_id
+         and e.status_id = 1
+         and d.req_status in (0, 1, 2, 3, 4, 5, 7, 8)
+
+         and d.ass_branch = V_brdtl2
+         and b.branch_id > 0
+         and e.branch_id = b.BRANCH_ID
+         and to_date(d.schedule_time) > to_date('12-oct-2022')
+         and to_date(d.schedule_time) <= to_date(sysdate)
+         and not exists (select y.req_id
+                from tbl_ds_sch_cl_cust y
+               where y.req_id = d.req_id
+                 and y.status in (0, 1))
+       order by d.schedule_time desc;
+
+ elsif p_pageVal1 = 'TEXTUPDATE' then
+    v_str := splitstr(p_ParVal, '~');
+
+    select count(*)
+      into cnt
+      from tbl_ds_sch_cl_cust t
+     where t.req_id = v_str(1)
+       and t.status = 2;
+    if (cnt = 0) then
+      OPEN QRY_RESULT FOR
+        select c.cust_name,
+               c.mob_no,
+               to_char(d.schedule_time, 'DD-MM-YYYY HH:MM:SS AM'),
+               d.comments,
+               cnt
+          from mana0809.tbl_doorstep_req_dtl  d,
+               mana0809.tbl_doorstep_cust_mst c
+         where c.cust_id = d.customer_id
+           AND d.req_id = v_str(1);
+
+    else
+      OPEN QRY_RESULT FOR
+        select c.cust_name,
+               c.mob_no,
+               to_char(d.schedule_time, 'DD-MM-YYYY HH:MM:SS AM'),
+               d.comments,
+               cnt,
+               t.rejected_by,
+               t.rjt_date,
+               t.reject_reason
+
+          from mana0809.tbl_doorstep_req_dtl  d,
+               mana0809.tbl_doorstep_cust_mst c,
+               mana0809.TBL_DS_SCH_CL_CUST    t
+         where c.cust_id = d.customer_id
+           and t.req_id = d.req_id
+           AND d.req_id = v_str(1);
+
+    end if;
+
+    -------
+
+ elsif p_pageVal1 = 'CUSTINS' then
+
+    v_str := splitstr(p_ParVal, '~');
+
+    select t.ass_branch
+      into V_ABid
+      from tbl_doorstep_req_dtl t
+     where t.req_id = v_str(2);
+
+    select t.customer_id
+      into V_cid
+      from tbl_doorstep_req_dtl t
+     where t.req_id = v_str(2);
+
+    select count(c.req_id)
+      into V_c_cnt1
+      from TBL_DS_SCH_CL_CUST c
+     where c.req_id = v_str(2);
+
+    if (V_c_cnt1 = 0) then
+
+      insert into TBL_DS_SCH_CL_CUST T
+        (T.CUST_ID,
+         T.CUST_NAME,
+         T.MOBILE_NO,
+         T.REMARKS,
+         T.TRA_DT,
+
+         T.STATUS,
+         T.EMP_CODE,
+         T.REQ_ID,
+         T.VRF_DT,
+         T.VRF_EMP_CODE,
+         T.ASSI_BRID)
+      values
+        (V_cid,
+         v_str(3),
+         v_str(4),
+         v_str(5),
+         sysdate,
+         1,
+         v_str(1),
+         v_str(2),
+         '',
+         '',
+         V_ABid);
+      commit;
+
+
+      ---Block Remove---
+
+      select count(distinct e.emp_code)
+        into blck_cnt
+        from mana0809.employee_master   e,
+             mana0809.Branch_Detail_New br,
+             tbl_doorstep_req_dtl       r
+       where e.branch_id = br.branch_id
+         and br.branch_id = r.ass_branch
+         and e.status_id = 1
+         and e.post_id in (1,10,-23,-22)
+         and e.emp_code = v_str(1)
+
+         and br.branch_id in
+             (select distinct r.ass_branch
+                from mana0809.tbl_doorstep_req_dtl r,
+
+                     mana0809.Branch_Detail_New     br,
+                     mana0809.tbl_doorstep_cust_mst c
+               where not exists
+               (select distinct r.ass_branch
+                        from tbl_ds_sch_cl_cust k
+                       where k.req_id = r.req_id
+                         and k.status in (0, 1))
+
+                 and r.req_status in (0, 1, 2, 3, 4, 5, 7, 8)
+                 --and to_date(sysdate) - to_date(r.schedule_time) >= 3
+                 and br.branch_id = r.ass_branch
+                 and r.customer_id = c.cust_id
+                 and to_date(r.schedule_time) > to_date('12-oct-2022')
+         and to_date(r.schedule_time) <= to_date(SYSDATE));
+
+
+
+      if (blck_cnt = 0) then --block remove for abh and bh
+
+        update tbl_punch_block b
+           set b.status = 0, b.block_release_dt = sysdate
+         where b.branch_id = V_ABid
+         and b.position_id in(1,10,-22,-23)
+           and b.module_id = 830
+           and trunc(b.block_dt) = trunc(sysdate);
+
+           commit;
+
+      end if;
+   OPEN QRY_RESULT FOR
+        SELECT 'Successfully Updated' from dual;
+
+     select e.emp_code into zh ---finding zh of the branch
+
+      from mana0809.branch_detail_new b,
+           mana0809.employee_master   e,
+           mana0809.tbl_fzm_master    f
+     where b.branch_id = e.branch_id
+       and f.region_id = b.reg_id
+       and e.post_id = -254
+       and e.status_id = 1
+       and f.fzm_id in
+           (select f.fzm_id
+              from mana0809.branch_dtl_new b, mana0809.tbl_fzm_master f
+             where f.region_id = b.reg_id
+               and b.BRANCH_ID > 0
+               and b.BRANCH_ID   = V_ABid);
+
+select count(*) into zh_count from tbl_punch_block t where t.module_id = 830 and t.emp_code = zh and t.position_id = -254 and t.status = 1 and trunc(t.block_dt) = trunc(sysdate);
+
+  if(zh_count = 0) then
+  
+  --CHECKING BLOCK ID ACTIVE OR NOT 
+SELECT COUNT(*) INTO BLOCK_ST FROM DSGL_BLOCK_MANAGER  B WHERE B.BLOCK_ID = 830 AND B.STATUS = 1 AND B.POST = 'ZH';
+select count(*)  into punch_sts from mana0809.daily_attend t where t.emp_code = zh and t.e_time is null; ---check zh evening punch 
+ IF (BLOCK_ST = 1 and punch_sts = 1) THEN
+
+  insert into tbl_punch_block
+    (emp_code,
+     status,
+     block_dt,
+     module_id,
+     block_reason,
+     position_id,
+     branch_id)
+    select e.emp_code,
+           1,
+           sysdate,
+           830,
+           'Pending Updation of DSGL Customers Schedules Status for ZH in sales marketing portal',
+           e.POST_ID,
+           b.branch_id
+      from mana0809.branch_detail_new b,
+           mana0809.employee_master   e,
+           mana0809.tbl_fzm_master    f
+     where b.branch_id = e.branch_id
+       and f.region_id = b.reg_id
+       and e.post_id = -254
+       and e.status_id = 1
+       and f.fzm_id in
+           (select f.fzm_id
+              from mana0809.branch_dtl_new b, mana0809.tbl_fzm_master f
+             where f.region_id = b.reg_id
+               and b.BRANCH_ID > 0
+               and b.BRANCH_ID  =  V_ABid);
+               commit;
+               
+               END IF;
+      end if;
+  else
+
+      select count(c.req_id)
+        into cnt
+        from TBL_DS_SCH_CL_CUST c
+       where c.req_id = v_str(2)
+         and c.status = 2; --rejected count
+
+      if (cnt > 0) then
+
+        update TBL_DS_SCH_CL_CUST T
+           set T.CUST_ID   = V_cid,
+               T.CUST_NAME = v_str(3),
+               T.MOBILE_NO = v_str(4),
+               T.REMARKS   = v_str(5),
+               T.TRA_DT    = sysdate,
+               T.STATUS    = 1,
+               T.EMP_CODE  = v_str(1),
+               T.ASSI_BRID = V_ABid
+         where T.REQ_ID = v_str(2);
+
+               ---Block Remove---
+
+      select count(distinct e.emp_code)
+        into blck_cnt
+        from mana0809.employee_master   e,
+             mana0809.Branch_Detail_New br,
+             tbl_doorstep_req_dtl       r
+       where e.branch_id = br.branch_id
+         and br.branch_id = r.ass_branch
+         and e.status_id = 1
+         and e.post_id in (1,10,-22,-23)
+         and e.emp_code = v_str(1)
+
+         and br.branch_id in
+             (select distinct r.ass_branch
+                from mana0809.tbl_doorstep_req_dtl r,
+
+                     mana0809.Branch_Detail_New     br,
+                     mana0809.tbl_doorstep_cust_mst c
+               where not exists
+               (select distinct r.ass_branch
+                        from tbl_ds_sch_cl_cust k
+                       where k.req_id = r.req_id
+                         and k.status in (0, 1))
+
+                 and r.req_status in (0, 1, 2, 3, 4, 5, 7, 8)
+                 --and to_date(sysdate) - to_date(r.schedule_time) >= 3
+                 and br.branch_id = r.ass_branch
+                 and r.customer_id = c.cust_id
+                 and to_date(r.schedule_time) > to_date('12-oct-2022')
+         and to_date(r.schedule_time) <= to_date(SYSDATE));
+
+
+
+      if (blck_cnt = 0) then --block remove for abh and bh
+
+        update tbl_punch_block b
+           set b.status = 0, b.block_release_dt = sysdate
+         where b.branch_id = V_ABid
+         and b.position_id in(1,10,-22,-23)
+           and b.module_id = 830
+           and trunc(b.block_dt) = trunc(sysdate);
+
+           commit;
+
+      end if;
+
+
+     select e.emp_code
+       into zh ---finding zh of the branch
+
+       from mana0809.branch_detail_new b,
+            mana0809.employee_master   e,
+            mana0809.tbl_fzm_master    f
+      where b.branch_id = e.branch_id
+        and f.region_id = b.reg_id
+        and e.post_id = -254
+        and e.status_id = 1
+        and f.fzm_id in
+            (select f.fzm_id
+               from mana0809.branch_dtl_new b, mana0809.tbl_fzm_master f
+              where f.region_id = b.reg_id
+                and b.BRANCH_ID > 0
+                and b.BRANCH_ID = V_ABid);
+
+select count(*) into zh_count from tbl_punch_block t where t.module_id = 830 and t.emp_code = zh and t.position_id = -254 and t.status = 1 and trunc(t.block_dt) = trunc(sysdate);
+
+  if(zh_count = 0) then
+  
+    --CHECKING BLOCK ID ACTIVE OR NOT 
+SELECT COUNT(*) INTO BLOCK_ST FROM DSGL_BLOCK_MANAGER  B WHERE B.BLOCK_ID = 830 AND B.STATUS = 1 AND B.POST = 'ZH';
+select count(*)  into punch_sts from mana0809.daily_attend t where t.emp_code = zh and t.e_time is null; ---check zh evening punch 
+ IF (BLOCK_ST = 1 and punch_sts = 1) THEN
+
+  insert into tbl_punch_block
+    (emp_code,
+     status,
+     block_dt,
+     module_id,
+     block_reason,
+     position_id,
+     branch_id)
+    select e.emp_code,
+           1,
+           sysdate,
+           830,
+           'Pending Updation of DSGL Customers Schedules Status for ZH in sales marketing portal',
+           e.POST_ID,
+           b.branch_id
+      from mana0809.branch_detail_new b,
+           mana0809.employee_master   e,
+           mana0809.tbl_fzm_master    f
+     where b.branch_id = e.branch_id
+       and f.region_id = b.reg_id
+       and e.post_id = -254
+       and e.status_id = 1
+       and f.fzm_id in
+           (select f.fzm_id
+              from mana0809.branch_dtl_new b, mana0809.tbl_fzm_master f
+             where f.region_id = b.reg_id
+               and b.BRANCH_ID > 0
+               and b.BRANCH_ID  =  V_ABid);
+               commit;
+               END IF;
+      end if;
+
+        OPEN QRY_RESULT FOR
+          SELECT 'Successfully Updated' from dual;
+
+      else
+        OPEN QRY_RESULT FOR
+          SELECT 'Already Existed' from dual;
+      end if;
+
+    end if;
+  --------113735 rejected case resend to corresponding abh or bh-------------
+
+  elsif p_pageVal1 = 'rejectcust' then
+    v_str := splitstr(p_ParVal, '~');
+
+    update tbl_ds_sch_cl_cust t
+       set t.status        = 2,
+           t.rjt_date      = sysdate,
+           t.rejected_by   = v_str(1),
+           t.reject_reason = v_str(4)
+     where t.req_id = v_str(2);
+    commit;
+
+     -------remove zh block-------------------------
+
+
+         select count(cl.req_id ) into rq_cnt
+        from MANA0809.BRANCH_DTL_NEW t1,
+             mana0809.tbl_fzm_master f,
+             tbl_ds_sch_cl_cust      cl
+       where t1.reg_id = f.region_id
+         and cl.status = 1
+         and cl.assi_brid = t1.BRANCH_ID
+         and f.fzm_id in (select F.FZM_ID
+                            from MANA0809.EMPLOYEE_MASTER t,
+                                 MANA0809.BRANCH_DTL_NEW  B,
+                                 MANA0809.TBL_FZM_MASTER  F
+                           WHERE T.POST_ID = -254
+                             AND T.STATUS_ID = 1
+                             AND T.BRANCH_ID = B.BRANCH_ID
+                             AND B.reg_id = F.REGION_ID
+                             AND T.EMP_CODE = v_str(1))
+         and t1.BRANCH_ID > 0;
+    if(rq_cnt = 0) then
+            update tbl_punch_block b
+           set b.status = 0, b.block_release_dt = sysdate
+         where b.emp_code = v_str(1)
+         and b.position_id = -254
+           and b.module_id = 830
+           and trunc(b.block_dt)=trunc(sysdate);
+   commit;
+   end if;
+  ----------------adding punch block to corresponding bh and abh-------------------
+  select c.assi_brid  into v_brid from tbl_ds_sch_cl_cust c where  c.req_id = v_str(2);
+
+select count(*) into V_c_cnt1  from  tbl_punch_block t where t.branch_id = v_brid and t.module_id = 830 and t.position_id in(1,10,-22,-23) and t.status = 1 and trunc(t.block_dt ) = trunc(sysdate);
+  if(V_c_cnt1 = 0) then
+  
+--CHECKING BLOCK ID ACTIVE OR NOT 
+SELECT COUNT(*) INTO BLOCK_ST FROM DSGL_BLOCK_MANAGER  B WHERE B.BLOCK_ID = 830 AND B.STATUS = 1 AND B.POST = 'BHABH';
+  
+IF (BLOCK_ST = 1) THEN
+  
+insert into tbl_punch_block
+    (emp_code,
+     status,
+     block_dt,
+     module_id,
+     block_reason,
+     position_id,
+     branch_id)
+    select distinct e.emp_code,
+                    1,
+                    sysdate,
+                    830,--Production Module ID 830
+                    'Pending Updation of DSGL Customers Schedules Status for BH in sales marketing portal',
+                    e.post_id,
+                    br.branch_id
+      from mana0809.employee_master   e,
+           mana0809.Branch_Detail_New br,
+           tbl_doorstep_req_dtl       r
+     where e.branch_id = br.branch_id
+       and br.branch_id = r.ass_branch
+       and e.status_id = 1
+       and e.post_id in (10, 1,-22,-23)
+       and br.branch_id  = v_brid;
+
+       commit;
+       END IF;
+
+  end if;
+
+
+-----------------------------------------------------------------
+    OPEN QRY_RESULT FOR
+      SELECT 'Rejected successfully' from dual;
+
+
+
+--------end 113735-------------------
+elsif p_pageVal1 = 'CANCELLEDVRF' then
+
+    OPEN QRY_RESULT FOR
+
+    /* select distinct t.req_id || '~' || t.cust_name
+                from tbl_ds_sch_cl_cust t
+               where t.status = 1;*/
+               
+      select cl.req_id || '~' || cl.cust_name
+        from MANA0809.BRANCH_DTL_NEW t1,
+             mana0809.tbl_fzm_master f,
+             tbl_ds_sch_cl_cust      cl
+       where t1.reg_id = f.region_id
+         and cl.status = 1
+         and cl.assi_brid = t1.BRANCH_ID
+         and f.fzm_id in (select F.FZM_ID
+                            from MANA0809.EMPLOYEE_MASTER t,
+                                 MANA0809.BRANCH_DTL_NEW  B,
+                                 MANA0809.TBL_FZM_MASTER  F
+                           WHERE T.POST_ID = -254
+                             AND T.STATUS_ID = 1
+                             AND T.BRANCH_ID = B.BRANCH_ID
+                             AND B.reg_id = F.REGION_ID
+                             AND T.EMP_CODE = p_pageVal2)
+         and t1.BRANCH_ID > 0;
+
+  elsif p_pageVal1 = 'TEXTUPDATEVRF' then
+    v_str := splitstr(p_ParVal, '~');
+    OPEN QRY_RESULT FOR
+
+      select distinct ds.cust_name,
+                      ds.mobile_no,
+                      to_char(d.schedule_time, 'DD-MM-YYYY HH:MM:SS AM'),
+                      ds.remarks,
+                      ds.emp_code,
+                      b.branch_name,
+                      e.emp_name
+        from mana0809.tbl_doorstep_req_dtl  d,
+             mana0809.tbl_doorstep_cust_mst c,
+             tbl_ds_sch_cl_cust             ds,
+             mana0809.employee_master       e,
+             mana0809.branch_master         b
+
+       where ds.cust_id = d.customer_id
+         and c.cust_id = d.customer_id
+         and ds.emp_code = e.emp_code
+         and e.branch_id = b.branch_id
+         and ds.status <> 0
+         AND dS.req_id = v_str(1);
+
+
+elsif p_pageVal1 = 'CUSTINSVRF' then
+    v_str := splitstr(p_ParVal, '~');
+
+    update tbl_ds_sch_cl_cust t
+       set t.status = 0, t.vrf_dt = sysdate, t.vrf_emp_code = v_str(1)
+     where t.req_id = v_str(2);
+    commit;
+    -------remove zh block----------113734---------------
+
+
+         select count(cl.req_id ) into rq_cnt
+        from MANA0809.BRANCH_DTL_NEW t1,
+             mana0809.tbl_fzm_master f,
+             tbl_ds_sch_cl_cust      cl
+       where t1.reg_id = f.region_id
+         and cl.status = 1
+         and cl.assi_brid = t1.BRANCH_ID
+         and f.fzm_id in (select F.FZM_ID
+                            from MANA0809.EMPLOYEE_MASTER t,
+                                 MANA0809.BRANCH_DTL_NEW  B,
+                                 MANA0809.TBL_FZM_MASTER  F
+                           WHERE T.POST_ID = -254
+                             AND T.STATUS_ID = 1
+                             AND T.BRANCH_ID = B.BRANCH_ID
+                             AND B.reg_id = F.REGION_ID
+                             AND T.EMP_CODE = v_str(1))
+         and t1.BRANCH_ID > 0;
+    if(rq_cnt = 0) then
+            update tbl_punch_block b
+           set b.status = 0, b.block_release_dt = sysdate
+         where b.emp_code = v_str(1)
+         and b.position_id = -254
+           and b.module_id = 830
+           and trunc(b.block_dt) = trunc(sysdate);
+   commit;
+    end if;
+
+
+
+    ------------end 113735-------------------------------
+
+    OPEN QRY_RESULT FOR
+      SELECT 'Successfully Verified' from dual;
+
+
+   elsif p_pageVal1 = 'GETNAMELIST' then
+if(p_pageVal2='Reminder') then
+OPEN QRY_RESULT FOR
+select c.phone,c.cust_name
+from TBL_NONCONVERTED_CUSTOMER c
+where c.expcon_dt=to_date(sysdate)
+and c.status='1'
+and c.update_date <> to_date(sysdate)
+FETCH FIRST 10 ROWS ONLY;
+else
+
+OPEN QRY_RESULT FOR
+select c.phone,c.cust_name
+from TBL_NONCONVERTED_CUSTOMER c
+where c.lead_source=p_pageVal2
+and (c.status IS NULL or c.status='3')
+and (c.update_date is NULL or c.update_date <> to_date(sysdate))
+FETCH FIRST 10 ROWS ONLY;
+
+end if;
+
+elsif p_pageVal1 = 'GETDETAIL' then
+v_str := splitstr(p_pageVal2, '~');
+
+if(v_str(1)='Reminder') then
+open QRY_RESULT for
+select c.created_date,c.branch_id,c.branch_name
+from TBL_NONCONVERTED_CUSTOMER c
+where c.cust_name=v_str(2)
+and c.phone=v_str(3);
+
+else
+open QRY_RESULT for
+select c.created_date,c.branch_id,c.branch_name
+from TBL_NONCONVERTED_CUSTOMER c
+where c.lead_source=v_str(1)
+and c.cust_name=v_str(2)
+and c.phone=v_str(3)
+and (c.status IS NULL or c.status='3');
+end if;
+
+
+
+
+elsif p_pageVal1 = 'SAVEDATATBL' then
+v_str := splitstr(p_pageVal2, '~');
+if(v_str(5)='Reminder') then
+update TBL_NONCONVERTED_CUSTOMER c set c.remark = v_str(2),
+c.status = v_str(1),
+c.update_id = v_str(3),
+c.update_date=to_date(sysdate),
+c.expcon_dt= v_str(7)
+where c.cust_name=v_str(6)
+and c.phone=v_str(4);
+commit;
+open QRY_RESULT for select '111' from dual;
+else
+update TBL_NONCONVERTED_CUSTOMER c set c.remark = v_str(2),
+c.status = v_str(1),
+c.update_id = v_str(3),
+c.update_date=to_date(sysdate),
+c.expcon_dt= v_str(7)
+where c.lead_source=v_str(5)
+and c.cust_name=v_str(6)
+and c.phone=v_str(4);
+commit;
+open QRY_RESULT for select '111' from dual;
+end if;
+
+          elsif p_pageVal1 = 'MARKRTNGACTALERT1' then
+    select count(t.filename)
+      into v_cnt
+      from DMS.TBL_MARKETNGACT_ALERT_UPLOAD t
+     where t.slno = p_ParVal;
+    if v_cnt = 0 then
+      open QRY_RESULT for
+        select t.attachment
+          from DMS.TBL_MARKETNGACT_ALERT_UPLOAD t
+         where t.slno = -1;
+    else
+      open QRY_RESULT for
+        select t.filename
+          from DMS.TBL_MARKETNGACT_ALERT_UPLOAD t
+         where t.slno = p_ParVal;
+         end if;
+   elsif p_pageVal1 = 'GET_COMMON_MENUID' then
+    OPEN QRY_RESULT FOR
+      select T.MENU_ID, T.REPORT_NAME
+        from TBL_QUERY_RPT t
+       WHERE T.REP_ID = p_ParVal
+         and t.status_id = 1
+       order by 2;
+  elsif p_pageVal1 = 'get_common_rpt' then
+    v_str := splitstr(p_ParVal, '~');
+    select T.REPORT_QUERY
+      into v_re
+      from TBL_QUERY_RPT t
+     where t.menu_id = v_str(1);
+
+    if INSTR(UPPER(v_re), 'DATEM1') > 0 and
+       INSTR(UPPER(v_re), 'DATEM2') > 0 then
+      v_re := replace(v_re, 'dateM1', v_str(2));
+      v_re := replace(v_re, 'dateM2', v_str(3));
+    elsif INSTR(UPPER(v_re), 'DATEM1') > 0 then
+      v_re := replace(v_re, 'dateM1', v_str(2));
+    elsif INSTR(UPPER(v_re), 'DATEM2') > 0 then
+      v_re := replace(v_re, 'dateM2', v_str(3));
+    end if;
+    if INSTR(UPPER(v_re), 'UNXID') > 0 then
+      v_re := replace(v_re, 'unxid', v_str(4));
+    end if;
+
+    if INSTR(UPPER(v_re), 'STID') > 0 then
+      v_re := replace(v_re, 'stid', v_str(5));
+    end if;
+    if INSTR(UPPER(v_re), 'EMPXID') > 0 then
+      v_re := replace(v_re, 'empxid', v_str(6));
+    end if;
+
+    OPEN QRY_RESULT FOR v_re;
+
+  elsif p_pageVal1 = 'get_common_repdata' then
+    v_str := splitstr(p_ParVal, '~');
+    open QRY_RESULT for
+      select t.rep_type, t.sub_id, t.report_name
+        from TBL_QUERY_RPT t
+       where t.menu_id = v_str(1)
+         AND T.REP_ID = v_str(2);
+ elsif p_pageVal1 = 'get_access' then
+            open QRY_RESULT for
+       select count(*) into v_cnt from form_accessibility t where t.form_id=7129 and t.emp_id= p_ParVal;
+
+  elsif p_pageVal1='Dispaly_menu' then
+      OPEN QRY_RESULT FOR
+      select T.MENU_ID,T.REPORT_NAME from TBL_QUERY_RPT t WHERE T.REP_ID=p_ParVal and t.status_id=1order by 2;
+      elsif p_pageVal1='GETsubmenu' then
+     v_str:=splitstr(p_ParVal,'~');
+      open QRY_RESULT for
+       select t.rep_type,t.sub_id,t.report_name from TBL_QUERY_RPT t where t.menu_id=v_str(1) AND T.REP_ID=v_str(2);
+   elsif p_pageVal1='CompetitorDtls' then
+      proc_competitor_dtls(p_flag, p_pageVal1, p_pageVal2, p_ParVal, QRY_RESULT );
+   elsif p_pageVal1='SalesIMGupload' then
+
+          select count(*) into cntt from employee_master t where t.emp_code=p_ParVal and t.department_id=576;
+          if cntt>0 then
+            OPEN QRY_RESULT FOR
+            select '111' from dual;
+           else
+             OPEN QRY_RESULT FOR
+             select '000' from dual;
+            end if;
+
+             ---Praveen Vertical Gold Loan-----
+    elsif p_pageVal1 = 'VerticalReport' then
+       v_str := splitstr(p_ParVal, '~');
+    open QRY_RESULT for
+
+   select distinct r.emp_code Emp_ID,
+                e.emp_name Emp_Name,
+                r.branch_id Branch_Id,
+                r.branch_name Branch_Name,
+                r.ref_date Referred_Date,
+                r.cust_name Customer_Name,
+                r.ph_number Customer_Contact,
+                case
+                  when m.followup_status=0 then 'Not Calling'
+                    when m.followup_status is null then 'Not Calling'
+                    when m.followup_status>0 then 'Called'
+                      end as Calling_Status, m.callcenter_comment as Customer_Feedback,
+
+                r.location,r.district,r.state
+                 from tbl_customer_referral r, employee_master e,Branch_Dtl_New b,mana0809.tbl_lead_mst m
+  where r.emp_code=e.emp_code and r.branch_id=b.BRANCH_ID and r.ph_number=m.phone_no
+  and to_date (r.ref_date) between to_date(v_str(1)) and to_date(v_str(2)) order by r.ref_date desc;
+
+    ------------End---------Praveen---
+    -----------115169----START-----
+    
+    elsif p_pageVal1='GET_ACCESS' then
+      OPEN QRY_RESULT FOR
+      select COUNT(*) FROM EMPLOYEE_MASTER E WHERE E.EMP_CODE=p_pageVal2 AND e.department_id=643 and e.status_id=1; 
+    
+     elsif p_pageVal1='GET_BRANCH' then
+      OPEN QRY_RESULT FOR
+      select T.BRANCH_ID from dms.TBL_BRANCH_UPLOADING_IMG t;
+    
+    elsif p_pageVal1='show_BHimg' then
+      OPEN QRY_RESULT FOR
+      select t.branch_id,
+             b.BRANCH_NAME,
+             t.photo_1,
+             t.photo_2,
+             t.photo_3,
+             t.photo_4,
+             t.photo_5,
+             t.photo_6,
+             t.photo_7,
+             t.photo_8,
+             t.photo_9,
+             t.photo_10
+              from dms.TBL_BRANCH_UPLOADING_IMG t,branch_dtl_new b where t.branch_id=b.BRANCH_ID and t.branch_id=p_pageVal2;  
+      
+    -----------115169----END-------
+   elsif p_pageVal1='DueDtExtension' then
+     update tbl_due_date_ext t set t.print_status=1 where t.pledge_no=p_pageVal2;
+     commit;
+     OPEN QRY_RESULT FOR
+     select t.branch_name, to_char(t.date_of_extension) date_of_extension,t.pledge_no, to_char(t.pledge_date) pledge_date,t.pledge_val,to_char(t.maturity_date) maturity_date ,t.period_of_extension, t.cust_name from TBL_DUE_DATE_EXT t where t.pledge_no=p_pageVal2;
+  elsif p_pageVal1='DueDateLoad' then
+    open QRY_RESULT for
+    select t.pledge_no from tbl_due_date_ext t  where t.branch_id=p_pageVal2 and t.print_status=0;
+  end if;
+
+  Exception
+  When others then
+    ErrorStat := -1;
+    ErrorMsg  := SUBSTR(SQLERRM, 1, 150) || '- Error Code :-' || SQLCODE;
+    rollback;
+    insert into dayend_error_log
+    values
+      (sysdate,
+       'ERROR FOUND IN-' || dbms_utility.format_error_backtrace ||
+       ', ERROR OCCURED-' || dbms_utility.format_error_stack,
+       dbms_utility.format_call_stack);
+    commit;
+
+  end PROC_DOOR_CALL_CENTER;

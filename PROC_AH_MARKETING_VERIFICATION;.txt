@@ -1,0 +1,1827 @@
+create or replace procedure PROC_AH_MARKETING_VERIFICATION(p_flag     in varchar2,
+                                                           p_pageVal1 in varchar2,
+                                                           p_pageVal2 in varchar2,
+                                                           p_ParVal   in varchar2 default ' ',
+                                                           QRY_RESULT OUT RESULT_TYPE.QRY_RESULT) is
+
+  v_str      array;
+  v_str1     array;
+  pr_id      number;
+  check_id   number;
+  re_id      number;
+  b_count    number;
+  v_id       Number;
+  x_id       number;
+  br_ids     number;
+  act_id     number;
+  fin_amount number;
+  du_days    number;
+  cnt        number;
+  cun        number;
+  b_id       number;
+  m_d        date;
+  ch_dtls    varchar2(4000);
+  ch_dtls_ah varchar2(4000);
+  ps_id      number;
+  zn_id      number;
+  dep_id     number;
+  depid      NUMBER;
+  ar_id      number;
+  blck       number;
+  a_id       number;
+  r_id       number;
+  z_id       number;
+  v_OrderBy  number;
+  v_Seq      number;
+  v_DocType  number;
+  cunt       number;
+  cunt2      number;
+  d_id       number;
+   v_IdR     varchar2(40);
+   ABR_id NUMBER;
+begin
+
+  /*if p_pageVal1 = 'getpropsal' then
+     v_str := splitstr(p_pageVal2, '^');
+     if (v_str(1) = '136') then
+  
+       select distinct a.area_id into ar_id
+   from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+  where   t.status_id=1 and t.branch_id=a.BRANCH_ID and t.emp_code=v_str(2);
+       open QRY_RESULT for
+  
+  select distinct a.actvty_id,
+                a.actvty_id || '~' || t.description || '~' || a.brid
+           from STATUS_MASTER t, tbl_marketing_activity_new a,branch_dtl_new b,tbl_po_master c,tbl_po_invoice_mst d
+          where t.module_id = 535
+            and t.option_id = 1
+            and a.activity = t.status_id and a.brid=b.BRANCH_ID
+            and b.BRANCH_ID=c.branch_id
+            and c.po_id=d.po_id
+            and  b.area_id=ar_id
+            and a.status = 8 and d.status_id=1 and c.status_id=1;
+  
+     elsif (v_str(1) = '199') then
+  
+       select distinct a.reg_id into re_id
+   from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+  where   t.status_id=1 and t.branch_id=a.BRANCH_ID and t.emp_code=v_str(2);
+       open QRY_RESULT for
+  
+         select distinct a.actvty_id,
+                a.actvty_id || '~' || t.description || '~' || a.brid
+           from STATUS_MASTER t, tbl_marketing_activity_new a,TBL_MARKETING_CHECK_DTLS c,branch_dtl_new b,tbl_po_master d,tbl_po_invoice_mst e
+          where t.module_id = 535
+            and t.option_id = 1
+            and a.activity = t.status_id and a.actvty_id=c.m_activity_id
+             and a.brid=d.branch_id
+             and d.po_id=e.po_id
+              and c.status_id=1 and
+            a.brid=b.BRANCH_ID and b.reg_id=re_id
+            and a.status = 2  and e.status_id=1 and c.status_id=1;
+  
+           elsif (v_str(1) = '-36') then
+       select a.fzm_id into zn_id
+   from branch_dtl_new t, tbl_fzm_master a, employee_master b
+  where a.region_id = t.reg_id and b.branch_id=t.BRANCH_ID and b.emp_code=v_str(2);
+  
+       open QRY_RESULT for
+         select distinct a.actvty_id,
+                a.actvty_id || '~' || t.description || '~' || a.brid
+           from STATUS_MASTER t, tbl_marketing_activity_new a,TBL_MARKETING_CHECK_DTLS c,branch_dtl_new b,tbl_po_master d,tbl_po_invoice_mst e
+          where t.module_id = 535
+            and t.option_id = 1
+            and a.activity = t.status_id and a.actvty_id=c.m_activity_id
+            and a.brid=d.branch_id
+            and d.po_id=e.po_id
+            and c.status_id=2 and
+            a.brid=b.BRANCH_ID and b.zonal_id=zn_id
+            and a.status = 4 and e.status_id=1 and c.status_id=1;
+     end if;
+   */
+  ---Commented by Daniya P S CRF_101538
+  if p_pageVal1 = 'getpropsal' then
+    v_str := splitstr(p_pageVal2, '^');
+    /*select count(*)
+      into cunt
+      from TBL_ZM_SALES ts
+     where ts.emp_code = v_str(2);*/
+    /*select count(*)
+      into cunt2
+      from employee_master em
+     where em.emp_code = v_str(2)
+       and em.department_id = 616;*/
+       
+  
+    if (v_str(1) = '545') THEN  ---Hozm
+      
+    
+      /*select count(*)
+        into cnt
+        from form_accessibility t
+       where t.emp_id = v_str(2)
+         and t.form_id = 5584;*/
+    
+     -- if (cnt > 0 or cunt > 0) then
+        ---cunt>0 = HO ZM
+      
+        open QRY_RESULT for
+        
+          select distinct a.actvty_id,
+                          a.actvty_id || '~' || t.description || '~' ||
+                          a.brid
+            from mana0809.STATUS_MASTER              t,
+                 mana0809.tbl_marketing_activity_new a,
+                 mana0809.tbl_po_master              p,
+                  mana0809.tbl_po_invoice_mst         e,
+                   mana0809.TBL_MARKETING_CHECK_DTLS  c
+           where t.module_id = 535
+             and t.option_id = 1
+             and p.po_id = e.po_id
+             and a.activity = t.status_id
+              and a.status = 14
+ 
+             and p.act_id = a.actvty_id
+             AND to_date(a.enter_date)>to_date('31-mar-2022');
+           
+      --end if;
+    
+    else
+      --AH
+      if (v_str(1) = '136') then
+      
+        select distinct a.area_id
+          into ar_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+         where t.status_id = 1
+           and t.branch_id = a.BRANCH_ID
+           and t.emp_code = v_str(2);
+      
+        IF (p_ParVal = '1') THEN
+          -- B4 PO delivery/PO Confirmed.
+          open QRY_RESULT for
+          
+            select distinct a.actvty_id,
+                            a.actvty_id || '~' || t.description || '~' ||
+                            a.brid
+              from STATUS_MASTER              t,
+                   tbl_marketing_activity_new a,
+                   branch_dtl_new             b,
+                   tbl_po_master              d
+             where t.module_id = 535
+               and t.option_id = 1
+               and a.activity = t.status_id
+               and a.brid = b.BRANCH_ID
+               and a.brid = d.branch_id
+               and b.area_id = ar_id
+                  -- and d.status_id in (1, 3, 8) -- PO Approved
+               and d.status_id in (0, 1, 3, 4, 8) -- PO Approved
+              AND to_date(a.enter_date)>to_date('31-mar-2022')
+               and a.status = 8; -- AH
+          --  and d.po_id not in (select m.po_id from tbl_po_invoice_mst m) ; --invoice not paid
+        
+        ELSE
+          -- After PO Delivery
+        
+          open QRY_RESULT for
+          
+            select distinct a.actvty_id,
+                            a.actvty_id || '~' || t.description || '~' ||
+                            a.brid
+              from STATUS_MASTER              t,
+                   tbl_marketing_activity_new a,
+                   branch_dtl_new             b,
+                   tbl_po_master              c,
+                   tbl_po_invoice_mst         d
+             where t.module_id = 535
+               and t.option_id = 1
+               and a.activity = t.status_id
+               and a.brid = b.BRANCH_ID
+               and b.BRANCH_ID = c.branch_id
+               and c.po_id = d.po_id
+               and b.area_id = ar_id
+               and a.status = 8 -- AH
+                  -- and d.status_id = 2; -- Invoice Paid
+             AND to_date(a.enter_date)>to_date('31-mar-2022')
+               and d.status_id in (1, 2);
+        
+        END IF;
+      
+      elsif (v_str(1) = '199') then
+        -- RM
+      
+        select distinct a.reg_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+         where t.status_id = 1
+           and t.branch_id = a.BRANCH_ID
+           and t.emp_code = v_str(2);
+      
+        IF (p_ParVal = '1') THEN
+          -- B4 PO delivery/PO Confirmed.
+        
+          open QRY_RESULT for
+          
+          -- b4 list
+            select distinct a.actvty_id,
+                            a.actvty_id || '~' || t.description || '~' ||
+                            a.brid
+              from STATUS_MASTER              t,
+                   tbl_marketing_activity_new a,
+                   TBL_MARKETING_CHECK_DTLS   c,
+                   branch_dtl_new             b,
+                   tbl_po_master              d
+             where t.module_id = 535
+               and t.option_id = 1
+               and a.activity = t.status_id
+               and a.actvty_id = c.m_activity_id
+               and a.brid = d.branch_id
+               and a.brid = b.BRANCH_ID
+               and b.reg_id = re_id
+               and a.status = 2 -- RM 
+              AND to_date(a.enter_date)>to_date('31-mar-2022')
+                  --and d.status_id in (1, 3, 8); -- PO Approved
+               and d.status_id in (0, 1, 3, 4, 8); -- PO Approved
+        
+          --  and d.po_id not in (select m.po_id from tbl_po_invoice_mst m) ; --invoice not paid
+        
+        ELSE
+          -- After PO Delivery
+        
+          open QRY_RESULT for
+          
+            select distinct a.actvty_id,
+                            a.actvty_id || '~' || t.description || '~' ||
+                            a.brid
+              from STATUS_MASTER              t,
+                   tbl_marketing_activity_new a,
+                   TBL_MARKETING_CHECK_DTLS   c,
+                   branch_dtl_new             b,
+                   tbl_po_master              d,
+                   tbl_po_invoice_mst         e
+             where t.module_id = 535
+               and t.option_id = 1
+               and a.activity = t.status_id
+               and a.actvty_id = c.m_activity_id
+               and a.brid = d.branch_id
+               and d.po_id = e.po_id
+               and c.status_id = 2
+               and a.brid = b.BRANCH_ID
+               and b.reg_id = re_id
+               and a.status = 2 -- RM 
+          AND to_date(a.enter_date)>to_date('31-mar-2022') 
+                  --and e.status_id = 2 -- Invoice Paid
+               and e.status_id in (1, 2); -- Invoice Paid
+            
+        
+        END IF;
+      
+      elsif (v_str(1) = '-36') then
+        -- FZM
+        select a.fzm_id
+          into zn_id
+          from branch_dtl_new t, tbl_fzm_master a, employee_master b
+         where a.region_id = t.reg_id
+           and b.branch_id = t.BRANCH_ID
+           and b.emp_code = v_str(2);
+      
+        open QRY_RESULT for
+          select distinct a.actvty_id,
+                          a.actvty_id || '~' || t.description || '~' ||
+                          a.brid
+            from STATUS_MASTER              t,
+                 tbl_marketing_activity_new a,
+                 TBL_MARKETING_CHECK_DTLS   c,
+                 branch_dtl_new             b,
+                 tbl_po_master              d,
+                 tbl_po_invoice_mst         e,
+                 tbl_fzm_master             f
+           where t.module_id = 535
+             and t.option_id = 1
+             and a.activity = t.status_id
+             and a.actvty_id = c.m_activity_id
+             and a.brid = d.branch_id
+             and d.po_id = e.po_id
+             and a.brid = b.BRANCH_ID
+             and f.region_id = b.reg_id
+             and f.fzm_id = zn_id
+             and a.status = 4 -- FZM 
+           AND to_date(a.enter_date)>to_date('31-mar-2022')
+             and e.status_id = 1; -- Invoice Paid
+         
+      
+      elsif (v_str(1) = '73') then
+        -- BDM ( changed to AGM zo)
+      
+        select a.fzm_id
+          into zn_id
+          from branch_dtl_new t, tbl_fzm_master a, employee_master b
+         where a.region_id = t.reg_id
+           and b.branch_id = t.BRANCH_ID
+           and b.emp_code = v_str(2);
+      
+        open QRY_RESULT for
+          select distinct a.actvty_id,
+                          a.actvty_id || '~' || t.description || '~' ||
+                          a.brid
+            from STATUS_MASTER              t,
+                 tbl_marketing_activity_new a,
+                 TBL_MARKETING_CHECK_DTLS   c,
+                 branch_dtl_new             b,
+                 tbl_po_master              d,
+                 tbl_po_invoice_mst         e,
+                 tbl_fzm_master             f
+           where t.module_id = 535
+             and t.option_id = 1
+             and a.activity = t.status_id
+             and a.actvty_id = c.m_activity_id
+             and a.brid = d.branch_id
+             and d.po_id = e.po_id
+             and a.brid = b.BRANCH_ID
+             and f.region_id = b.reg_id
+             --and f.fzm_id = zn_id
+             and a.status = 22 --BDM
+             AND to_date(a.enter_date)>to_date('31-mar-2022')
+             and e.status_id in (1, 2); -- Invoice Paid
+          
+      
+      elsif (v_str(4) = '616') THEN ---abr
+         SELECT b.emp_code
+          into ABR_id
+          FROM  employee_master b
+         WHERE  b.emp_code = v_str(2)
+         AND b.department_id = 616;
+        open QRY_RESULT for
+        
+          select distinct a.actvty_id,
+                          a.actvty_id || '~' || t.description || '~' ||
+                          a.brid
+            from STATUS_MASTER              t,
+                 tbl_marketing_activity_new a,
+                 tbl_po_master              p,
+                 TBL_MARKETING_CHECK_DTLS   c
+           where t.module_id = 535
+             and t.option_id = 1
+             and a.activity = t.status_id
+             and a.status = 24 --ABR
+             AND to_date(a.enter_date)>to_date('31-mar-2022')
+             and p.act_id = a.actvty_id;
+          
+      
+      end if;
+    end if;
+  elsif p_pageVal1 = 'getact_details' then
+    open QRY_RESULT for
+      select c.inauguration_dt,
+             d.gold_kg,
+             a.dur_days,
+             a.unit,
+             a.sqft,
+             a.seconds,
+             a.marketing_actvty_strt,
+             a.marketing_actvty_end,
+             a.final_vendor_name,
+             a.final_amount
+        from STATUS_MASTER              t,
+             tbl_marketing_activity_new a,
+             branch_dtl_new             b,
+             branch_master              c,
+             staff_norms_month_balance  d
+       where t.module_id = 535
+         and t.option_id = 1
+         and a.activity = t.status_id
+         and a.brid = b.BRANCH_ID
+         and b.BRANCH_ID = c.branch_id
+         and c.branch_id = d.branch_id
+         and a.actvty_id = p_pageVal2;
+  elsif p_pageVal1 = 'getpst_chk' then
+    open QRY_RESULT for
+      select t.post_id, t.department_id
+        from employee_master t
+       where t.emp_code = p_pageVal2;
+  elsif p_pageVal1 = 'check_al_add' then
+    select t.post_id, t.branch_id ,t.department_id
+      into ps_id, b_id,dep_id
+      from employee_master t
+     where t.emp_code = p_ParVal;
+  
+    if (ps_id = 136) then
+      select count(*)
+        into cnt
+        from TBL_MARKETING_CHECK_DTLS a
+       where a.m_activity_id = p_pageVal2
+         and a.status_id = 1;
+      if (cnt > 1) then
+        OPEN QRY_RESULT for
+          Select '11' from dual;
+      end if;
+    elsif (ps_id = 199) then
+      select count(*)
+        into cnt
+        from TBL_MARKETING_CHECK_DTLS a
+       where a.m_activity_id = p_pageVal2
+         and a.status_id = 2;
+      if (cnt > 1) then
+        OPEN QRY_RESULT for
+          Select '22' from dual;
+      end if;
+    elsif (ps_id = -36) then
+      select count(*)
+        into cnt
+        from TBL_MARKETING_CHECK_DTLS a
+       where a.m_activity_id = p_pageVal2
+         and a.status_id = 2;
+      if (cnt > 1) then
+        OPEN QRY_RESULT for
+          Select '33' from dual;
+      end if;
+    end if;
+  
+  elsif p_pageVal1 = 'get_checklist_qst_ah' then
+    v_str := splitstr(p_pageVal2, '~');
+  
+    open QRY_RESULT for
+      select a.ch_id, a.ch_qstns, a.flag
+        from TBL_MARKETING_CHECKLIST_QST a
+       where a.status_id = 1
+         and a.before_after_status = v_str(2);
+  
+   elsif p_pageVal1 = 'GetDoc' then
+             open QRY_RESULT for
+               select a.description || '~' || t.invoice_no, a.order_by || '~' ||u.invoice_id || '~' || u.slno|| '~' ||'0' from MANA0809.TBL_PO_INVOICE_MST t, dms.TBL_PO_INVOICE_UPLOAD u, mana0809.tbl_purchase_status_master a, mana0809.tbl_po_master m where t.invoice_id = u.invoice_id and u.document is not null and u.inv_status is not null and a.module_id = 20 and a.option_id = 2 and a.order_by = 1 and t.po_id = m.po_id and (m.act_id is not null and m.act_id not in (0)) and m.act_id = p_pageVal2 union all select distinct a.description, a.order_by || '~' ||p.po_id || '~' || p.slno|| '~' ||'0' from MANA0809.tbl_po_master t, dms.TBL_POPRINT_UPLOAD p, MANA0809.tbl_purchase_status_master a where p.po_id = t.po_id and p.document is not null and a.module_id = 20 and a.option_id = 2 and a.order_by = 2 and (t.act_id is not null and t.act_id not in (0)) and t.act_id = p_pageVal2 union all select distinct a.description, a.order_by || '~' ||q.pr_id || '~' || q.sl_no|| '~' ||'0' from MANA0809.tbl_po_master t, MANA0809.tbl_payment_rati_approval_log l, DMS.TBL_PR_QUOTATION q, MANA0809.tbl_purchase_status_master a where t.po_id = l.po_id and q.pr_id = to_char(l.prid) and q.document is not null and a.module_id = 20 and a.option_id = 2 and a.order_by = 12 and (t.act_id is not null and t.act_id not in (0)) and t.act_id = p_pageVal2 union all select a.description || '~' || t.invoice_no, a.order_by || '~' ||k.invoice_id || '~' || k.seq_no || '~' ||k.doc_type from MANA0809.TBL_PO_INVOICE_MST t, dms.TBL_PO_INVOICE_DOCUMENTS k, MANA0809.tbl_purchase_status_master a, MANA0809.tbl_po_master m where k.invoice_id = t.invoice_id and k.document is not null and a.module_id = 20 and a.option_id = 1 and a.order_by = k.doc_type and t.po_id = m.po_id and (m.act_id is not null and m.act_id not in (0)) and m.act_id = p_pageVal2 order by 2;
+
+
+           elsif p_pageVal1 = 'viewdoc' then
+             v_OrderBy   := element(p_ParVal,1, '~');
+             if v_OrderBy = '2'then
+               v_IdR := element(p_ParVal,2, '~');
+             else
+               v_Id  := element(p_ParVal,2, '~');
+             end if;            
+             v_Seq       := element(p_ParVal,3, '~');
+             v_DocType   := element(p_ParVal,4, '~');
+             if v_OrderBy ='1' then
+               OPEN QRY_RESULT FOR
+               select t.document,t.file_name,'0' from dms.TBL_PO_INVOICE_UPLOAD t where t.invoice_id=v_Id and t.slno=v_Seq;
+             elsif v_OrderBy ='2' then              
+               OPEN QRY_RESULT FOR
+               select t.document,t.file_name,'0' from dms.TBL_POPRINT_UPLOAD t where t.po_id=v_IdR and t.slno=v_Seq;
+             elsif v_OrderBy ='12' then
+               OPEN QRY_RESULT FOR
+               select t.document,t.file_name,'0' from DMS.TBL_PR_QUOTATION t where t.pr_id = to_char(v_Id) and t.sl_no=v_Seq;
+             else
+               OPEN QRY_RESULT FOR
+               select t.document,t.file_name,'0' from dms.TBL_PO_INVOICE_DOCUMENTS t where t.invoice_id=v_Id and t.doc_type=v_DocType and t.seq_no=v_Seq;
+             end if;
+  
+  elsif p_pageVal1 = 'get_checklist_qst_rm' then
+    v_str := splitstr(p_pageVal2, '~');
+    select t.post_id, t.branch_id,t.department_id
+      into ps_id, b_id,dep_id
+      from employee_master t
+     where t.emp_code = p_ParVal;
+  
+    if( b_id = 0 or dep_id = 576) then
+      --HO or hozm
+    
+      select t.m_ch_dtls_fzm
+        into ch_dtls
+        from TBL_MARKETING_CHECK_DTLS t
+       where t.m_activity_id = v_str(1);
+    
+      open QRY_RESULT for
+        select a.ch_id, a.ch_qstns, a.flag--, ch_dtls
+          from TBL_MARKETING_CHECKLIST_QST a
+         where a.status_id = 1;
+    
+    else
+    
+      if (ps_id = 199) then
+        select t.m_chk_dtls
+          into ch_dtls
+          from TBL_MARKETING_CHECK_DTLS t
+         where t.m_activity_id = v_str(1);
+      
+        open QRY_RESULT for
+          select a.ch_id, a.ch_qstns, a.flag--, ch_dtls
+            from TBL_MARKETING_CHECKLIST_QST a
+           where a.status_id = 1
+             and a.before_after_status = v_str(2);
+      
+      elsif (ps_id = -36) then
+      
+        select t.m_ch_dtls_rm
+          into ch_dtls
+          from TBL_MARKETING_CHECK_DTLS t
+         where t.m_activity_id = v_str(1);
+        
+        open QRY_RESULT for
+          select a.ch_id, a.ch_qstns, a.flag--, ch_dtls
+            from TBL_MARKETING_CHECKLIST_QST a
+           where a.status_id = 1;
+          
+    elsif (ps_id = 73) then
+      
+        select t.m_ch_dtls_rm
+          into ch_dtls
+          from TBL_MARKETING_CHECK_DTLS t
+         where t.m_activity_id = v_str(1);
+        
+        open QRY_RESULT for
+          select a.ch_id, a.ch_qstns, a.flag--, ch_dtls
+            from TBL_MARKETING_CHECKLIST_QST a
+           where a.status_id = 1;
+           
+           
+    elsif (dep_id = 616) then
+      select t.m_ch_dtls_fzm
+      into ch_dtls
+        from TBL_MARKETING_CHECK_DTLS t
+       where t.m_activity_id = v_str(1);
+    
+      open QRY_RESULT for
+        select a.ch_id, a.ch_qstns, a.flag--, ch_dtls
+          from TBL_MARKETING_CHECKLIST_QST a
+         where a.status_id = 1;
+      
+        -------------------change 366371
+        /*select t.m_ch_dtls_rm, t.m_chk_dtls
+          into ch_dtls, ch_dtls_ah
+          from TBL_MARKETING_CHECK_DTLS t
+         where t.m_activity_id = v_str(1);
+      
+        open QRY_RESULT for
+          select a.ch_id, a.ch_qstns, a.flag, ch_dtls\*, ch_dtls_ah*\
+            from TBL_MARKETING_CHECKLIST_QST a
+           where a.status_id = 1;*/
+      
+        --------------end change 366371---ist declare( ch_dtls_ah  )this
+      
+      end if;
+    end if;
+  
+  elsif p_pageVal1 = 'confirm_cheklists' then
+  
+    v_str := splitstr(p_ParVal, '^');
+    select t.post_id, t.branch_id ,t.department_id
+      into ps_id, b_id ,dep_id
+      from employee_master t
+     where t.emp_code = v_str(3);
+  
+    if (ps_id = 545) then
+    
+      update TBL_MARKETING_CHECK_DTLS a
+         set a.status_id     =15, -- HO verified
+             a.m_ch_dtls_ho  = p_pageVal2,
+             a.verified_by   = v_str(3),
+             a.verified_date = sysdate
+      
+       where a.m_activity_id = v_str(1);
+    
+    else
+    
+      if (ps_id = 136) then
+        insert into TBL_MARKETING_CHECK_DTLS
+          (M_CH_ID,
+           M_ACTIVITY_ID,
+           M_CHK_DTLS,
+           VERIFIED_BY,
+           VERIFIED_DATE,
+           BR_ID,
+           STATUS_ID,
+           PHYSICALLY_VERFIED_AH)
+        
+        values
+          (seq_m_check_no.nextval,
+           v_str(1),
+           p_pageVal2,
+           v_str(3),
+           sysdate,
+           v_str(2),
+           1,
+           v_str(4));
+      elsif (ps_id = 199) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.status_id           = 3,
+               a.m_ch_dtls_rm        = p_pageVal2,
+               a.verified_by         = v_str(3),
+               a.verified_date       = sysdate,
+               PHYSICALLY_VERFIED_RM = v_str(4)
+         where a.m_activity_id = v_str(1);
+      
+      elsif (ps_id = -36) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.status_id     = 5,
+               a.m_ch_dtls_fzm = p_pageVal2,
+               a.verified_by   = v_str(3),
+               a.verified_date = sysdate
+         where a.m_activity_id = v_str(1);
+         
+          elsif (ps_id = 73) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.status_id     = 23,
+               a.m_ch_dtls_bdm = p_pageVal2,
+               a.verified_by   = v_str(3),
+               a.verified_date = sysdate
+         where a.m_activity_id = v_str(1);
+         
+          elsif (dep_id = 616) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.status_id     = 25,
+               a.m_ch_dtls_abr = p_pageVal2,
+               a.verified_by   = v_str(3),
+               a.verified_date = sysdate
+         where a.m_activity_id = v_str(1);
+      
+      end if;
+    
+    end if;
+  
+    commit;
+    elsif p_pageVal1 = 'get_postid' then
+    open QRY_RESULT for
+      select t.post_id, t.department_id
+        from employee_master t
+       where t.emp_code = p_pageVal2;
+
+  
+  elsif p_pageVal1 = 'marketing_act_confirm' then
+    v_str1 := splitstr(p_ParVal, '^');
+     select n.post_id, n.branch_id, bb.area_id, bb.reg_id, f.fzm_id,n.department_id
+      into pr_id, b_id, a_id, r_id, z_id,depid
+      from employee_master n, branch_dtl_new bb, tbl_fzm_master f
+     where n.emp_code = v_str1(2)
+       and bb.BRANCH_ID = n.branch_id
+       and f.region_id = bb.reg_id;
+  
+    /* select a.m_ch_id
+     into check_id
+     from TBL_MARKETING_CHECK_DTLS a
+    where a.m_activity_id = v_str1(1)
+      and a.br_id = v_str1(3);*/
+    ---CRF_101538 new column s working_status,remarks_ho updation
+  /*  select count(*)
+      into cunt
+      from TBL_ZM_SALES ts
+     where ts.emp_code = v_str1(2);
+    select count(*)
+      into cunt2
+      from employee_master em
+     where em.emp_code = v_str1(2)
+       and em.department_id = 616;*/
+  
+    if (pr_id=545) then
+    
+      update TBL_MARKETING_CHECK_DTLS a
+         set a.remarks_ho     = p_pageVal2,
+             a.verified_by    = v_str1(2),
+             a.working_status = v_str1(4)
+       where a.m_activity_id = v_str1(1);
+      update tbl_marketing_activity_new t
+         set t.status = 15
+       where t.actvty_id = v_str1(1); --  HO verified ,  hozm verified
+    
+    else
+    
+      if (pr_id = 136) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.remarks        = p_pageVal2,
+               a.verified_by    = v_str1(2),
+               a.working_status = v_str1(4)
+         where a.m_activity_id = v_str1(1);
+        UPDATE TBL_MARKETING_ACTIVITY_NEW N
+           set n.status = 1, n.AH_VERIFIED_DATE = to_date(sysdate)
+         where n.actvty_id = v_str1(1);
+      
+      elsif (pr_id = 199) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.REMARKS_RM     = p_pageVal2,
+               a.verified_by    = v_str1(2),
+               a.working_status = v_str1(4)
+         where a.m_activity_id = v_str1(1);
+        update tbl_marketing_activity_new t
+           set t.status = 3
+         where t.actvty_id = v_str1(1);
+      
+      elsif (pr_id = 73) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.remarks_bdm    = p_pageVal2,
+               a.verified_by    = v_str1(2),
+               a.working_status = v_str1(4)
+         where a.m_activity_id = v_str1(1);
+        update tbl_marketing_activity_new t
+           set t.status = 23
+         where t.actvty_id = v_str1(1);
+      
+      elsif (pr_id = -36) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.REMARKS_FZM    = p_pageVal2,
+               a.verified_by    = v_str1(2),
+               a.working_status = v_str1(4)
+         where a.m_activity_id = v_str1(1);
+        update tbl_marketing_activity_new t
+           set t.status = 5
+         where t.actvty_id = v_str1(1);
+      
+      elsif (depid=616) then
+        update TBL_MARKETING_CHECK_DTLS a
+           set a.remarks_abr   = p_pageVal2,
+               a.verified_by    = v_str1(2),
+               a.working_status = v_str1(4)
+         where a.m_activity_id = v_str1(1);
+        update tbl_marketing_activity_new t
+           set t.status = 25 ---ABR verified
+         where t.actvty_id = v_str1(1);
+      end if;
+    
+    end if;
+  
+    commit;
+  
+    -------------------------------punching block remove
+    ---HO block remove
+  
+    if b_id = 0 then
+    
+      select count(*)
+        into blck
+        from mana0809.tbl_marketing_activity_new a
+       where a.status in (14, 22);
+    
+      if blck <= 0 then
+      
+        update TBL_PUNCH_BLOCK t
+           set t.status = 0, t.block_release_dt = 'sysdate'
+         where t.module_id = 107
+           and t.branch_id = 0;
+      
+      end if;
+    
+    else
+    
+      if (pr_id = 136) then
+      
+        select sum(ab.aa)
+          into blck
+          from (select count(*) aa
+                  from (select distinct a.actvty_id
+                          from tbl_marketing_activity_new a,
+                               branch_dtl_new             b,
+                               tbl_po_master              d
+                         where a.brid = b.BRANCH_ID
+                           and a.brid = d.branch_id
+                           and b.area_id = a_id
+                           and d.status_id in (1, 3, 8)
+                           and a.status = 8
+                           and trunc(sysdate) >= trunc(d.approved_date) + 16
+                           and d.approved_date >= '14-dec-2021'
+                           and (business_hours_work(trunc(d.approved_date),
+                                                    sysdate,
+                                                    b.BRANCH_ID)) >= 16) b
+                union
+                select count(*) bb
+                  from (select distinct a.actvty_id
+                          from tbl_marketing_activity_new a,
+                               branch_dtl_new             b,
+                               tbl_po_master              c,
+                               tbl_po_invoice_mst         d
+                         where a.brid = b.BRANCH_ID
+                           and b.BRANCH_ID = c.branch_id
+                           and c.po_id = d.po_id
+                           and b.area_id = a_id
+                           and a.status = 8
+                           and d.status_id = 2
+                           and trunc(sysdate) >= trunc(c.approved_date) + 16
+                           and c.approved_date >= '14-dec-2021'
+                           and (business_hours_work(trunc(c.approved_date),
+                                                    sysdate,
+                                                    b.BRANCH_ID)) >= 16
+                         group by a.actvty_id) a) ab;
+      
+        if blck <= 0 then
+        
+          update TBL_PUNCH_BLOCK t
+             set t.status = 0, t.block_release_dt = 'sysdate'
+           where t.module_id = 107
+             and t.emp_code = v_str1(2);
+        end if;
+      
+      elsif (ps_id = 199) then
+        select sum(ab.aa)
+          into blck
+          from (select count(*) aa
+                  from (select distinct a.actvty_id
+                          from tbl_marketing_activity_new a,
+                               TBL_MARKETING_CHECK_DTLS   c,
+                               branch_dtl_new             b,
+                               tbl_po_master              d
+                         where a.actvty_id = c.m_activity_id
+                           and a.brid = d.branch_id
+                           and a.brid = b.BRANCH_ID
+                           and b.reg_id = re_id
+                           and a.status = 2
+                           and c.status_id = 1
+                           and d.status_id in (1, 3, 8)
+                           and a.ah_verified_date >= '14-dec-2021'
+                           and trunc(sysdate) >= trunc(d.approved_date) + 23
+                           and (business_hours_work(trunc(d.approved_date),
+                                                    sysdate,
+                                                    b.BRANCH_ID)) >= 23) b
+                union
+                select count(*) bb
+                  from (select distinct a.actvty_id
+                          from tbl_marketing_activity_new a,
+                               TBL_MARKETING_CHECK_DTLS   c,
+                               branch_dtl_new             b,
+                               tbl_po_master              d,
+                               tbl_po_invoice_mst         e
+                         where a.actvty_id = c.m_activity_id
+                           and a.brid = d.branch_id
+                           and d.po_id = e.po_id
+                           and c.status_id = 1
+                           and a.brid = b.BRANCH_ID
+                           and b.reg_id = re_id
+                           and a.status = 2
+                           and e.status_id = 2
+                           and c.status_id = 1
+                           and a.ah_verified_date >= '14-dec-2021'
+                           and trunc(sysdate) >= trunc(d.approved_date) + 23
+                           and (business_hours_work(trunc(d.approved_date),
+                                                    sysdate,
+                                                    b.BRANCH_ID)) >= 23) a) ab;
+        if blck <= 0 then
+        
+          update TBL_PUNCH_BLOCK t
+             set t.status = 0, t.block_release_dt = 'sysdate'
+           where t.module_id = 107
+             and t.emp_code = v_str1(2);
+        end if;
+      
+      elsif (ps_id = -36) then
+      
+        select count(*)
+          into blck
+          from (select distinct a.actvty_id
+                  from tbl_marketing_activity_new a,
+                       TBL_MARKETING_CHECK_DTLS   c,
+                       branch_dtl_new             b,
+                       tbl_po_master              d,
+                       tbl_po_invoice_mst         e,
+                       tbl_fzm_master             f
+                 where a.actvty_id = c.m_activity_id
+                   and a.brid = d.branch_id
+                   and d.po_id = e.po_id
+                   and a.brid = b.BRANCH_ID
+                   and f.fzm_id = z_id
+                   and a.status = 4
+                   and e.status_id = 1
+                   and c.status_id = 2
+                   and f.region_id = b.reg_id
+                   and a.rm_verified_date >= '14-dec-2021'
+                   and trunc(sysdate) >= trunc(d.approved_date) + 23
+                   and (business_hours_work(trunc(d.approved_date),
+                                            sysdate,
+                                            b.BRANCH_ID)) >= 23) a;
+      
+        if blck <= 0 then
+        
+          update TBL_PUNCH_BLOCK t
+             set t.status = 0, t.block_release_dt = 'sysdate'
+           where t.module_id = 107
+             and t.emp_code = v_str1(2);
+        end if;
+      
+      elsif (ps_id = 713) then
+      
+        select count(*)
+          into blck
+          from (select distinct a.actvty_id
+                
+                  from tbl_marketing_activity_new a,
+                       TBL_MARKETING_CHECK_DTLS   c,
+                       branch_dtl_new             b,
+                       tbl_po_master              d,
+                       tbl_po_invoice_mst         e,
+                       tbl_fzm_master             f
+                 where a.actvty_id = c.m_activity_id
+                   and a.brid = d.branch_id
+                   and d.po_id = e.po_id
+                   and a.brid = b.BRANCH_ID
+                   and f.fzm_id = zn_id
+                   and a.status = 5
+                   and e.status_id = 1
+                   and f.region_id = b.reg_id
+                   and c.status_id = 2
+                      
+                   and a.fzm_verified_date >= '14-dec-2021'
+                   and trunc(sysdate) >= trunc(d.approved_date) + 23
+                   and (business_hours_work(trunc(d.approved_date),
+                                            sysdate,
+                                            b.BRANCH_ID)) >= 23);
+        if blck <= 0 then
+        
+          update TBL_PUNCH_BLOCK t
+             set t.status = 0, t.block_release_dt = 'sysdate'
+           where t.module_id = 107
+             and t.emp_code = v_str1(2);
+        end if;
+      
+      end if;
+    
+    end if;
+  
+    -------------------------------------------------
+  
+  /*elsif p_pageval1 = 'rm_check_scenerio' then
+     select count(n.BRANCH_ID)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a
+         where n.reg_id = re_id
+           and n.BRANCH_ID = a.brid
+           and a.status = 1;
+        d_id := round(b_count * (10 / 100));
+    select count(*)
+      into cunt
+      from TBL_ZM_SALES ts
+     where ts.emp_code = v_str(2);
+    select count(*)
+      into cunt2
+      from employee_master em
+     where em.emp_code = v_str(2)
+       and em.department_id = 616;
+  
+    if (p_ParVal = '0' or cunt > 0) then
+      -- HO           if cunt>0 hozm
+      select count(a.actvty_id)
+        into b_count
+        from mana0809.tbl_marketing_activity_new a
+       where a.status = 5;
+      v_id := round(b_count * (3 / 100) + d_id);
+      x_id := round(v_id / 5);
+    
+      IF (x_id = 0) then
+        x_id := 1;
+      
+      end if;
+    
+      ---act cost
+    
+      merge into mana0809.TBL_MARKETING_ACTIVITY_NEW m
+      using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+               from (select distinct t.actvty_id, t.brid, c.payable_amt
+                       from mana0809.TBL_MARKETING_ACTIVITY_NEW t,
+                            mana0809.tbl_po_master              b,
+                            mana0809.tbl_po_invoice_mst         c,
+                            mana0809.tbl_fzm_master             d
+                      where t.actvty_id = b.act_id
+                        and b.po_id = c.po_id
+                        and t.status = 5
+                        and c.payable_amt is not null
+                      order by c.payable_amt desc) y) x
+      on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+      when matched then
+        update set m.status = 14; --HO Growth , hozm
+    
+      ----duration days
+      merge into TBL_MARKETING_ACTIVITY_NEW m
+      using (select t.actvty_id,
+                    t.DUR_DAYS,
+                    DENSE_RANK() over(order by t.DUR_DAYS desc) as rn
+               from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+              where t.status = 5) x
+      on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+      when matched then
+        update set m.status = 14; --HO Growth, hozm
+    
+      ---same vendor
+    
+      for rec IN (select t.brid
+                    from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                   where t.status = 5) loop
+      
+        select count(t.actvty_id)
+          into cnt
+          from TBL_MARKETING_ACTIVITY_NEW t
+         where t.brid = rec.brid
+           AND T.STATUS = 5;
+      
+        if (cnt > 2) then
+          select count(distinct t.final_vendor_name)
+            into cun
+            from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+           where t.brid = a.BRANCH_ID
+             and a.BRANCH_ID = rec.brid;
+          if (cun = 1) then
+            select t.brid
+              into b_id
+              from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+             where t.brid = a.BRANCH_ID
+               and t.status = 5
+               and a.BRANCH_ID = br_ids;
+            update TBL_MARKETING_ACTIVITY_NEW v
+               set v.status = 14 --HO Growth , hozm
+             where v.brid = rec.brid;
+          end if;
+        end if;
+      end loop;
+    
+      ------ho growth-----------
+      merge into TBL_MARKETING_ACTIVITY_NEW m
+      using (select y.actvty_id,
+                    (y.ACTVTY_END_OS - y.ACTVTY_START_OS) mus,
+                    rownum rn
+               from (select t.actvty_id,
+                            t.ACTVTY_START_OS,
+                            t.actvty_end_os,
+                            DENSE_RANK() over(order by(t.ACTVTY_END_OS - t.ACTVTY_START_OS) desc) as rn
+                       from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                      where t.status = 5
+                        and t.ACTVTY_END_OS is not null) y) x
+      on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+      when matched then
+        update set m.status = 14; --HO Growth , hozm
+    
+      ---nca
+    
+      merge into TBL_MARKETING_ACTIVITY_NEW m
+      using (select y.actvty_id,
+                    (y.ACTVTY_END_AVGCU - y.ACTVTY_START_AVGCUST) mus,
+                    y.rn
+               from (select t.actvty_id,
+                            T.ACTVTY_END_AVGCU,
+                            T.ACTVTY_START_AVGCUST,
+                            DENSE_RANK() over(order by(T.ACTVTY_END_AVGCU - T.ACTVTY_START_AVGCUST)) as rn
+                       from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                      where t.status = 5
+                        and t.ACTVTY_END_AVGCU is not null) y) x
+      on (m.actvty_id = x.actvty_id and x.rn <= 1)
+      when matched then
+        update set m.status = 14; --HO Growth, hozm
+    
+      commit;
+    
+    else
+      --------rm
+      select t.post_id
+        into ps_id
+        from employee_master t
+       where t.emp_code = p_pageval2;
+      --select count(*) into cunt2 from employee_master em where em.emp_code=p_pageVal2 and em.department_id=616;
+      if (ps_id = 199) then
+        select a.reg_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+           and t.department_id = 280
+           and t.firm_id = 1
+           and t.status_id = 1;
+        select count(n.BRANCH_ID)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a
+         where n.reg_id = re_id
+           and n.BRANCH_ID = a.brid
+           and a.status = 1;
+        d_id := round(b_count * (10 / 100));
+        v_id := round(b_count * (25 / 100) + d_id);
+        x_id := round(v_id / 5);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c
+                        where t.brid = a.BRANCH_ID
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          and t.status = 1
+                          and a.reg_id = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 2, m.rm_verified_date = to_date(sysdate);
+      
+        ----duration days
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, y.DUR_DAYS, rownum rn
+                 from (select t.actvty_id, t.DUR_DAYS
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 1
+                          and a.reg_id = re_id
+                        order by t.dur_days desc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 2, m.rm_verified_date = to_date(sysdate);
+        ---same vendor
+      
+        for rec IN (select t.brid
+                      from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                     where t.brid = a.BRANCH_ID
+                       and a.reg_id = re_id) loop
+        
+          select count(t.actvty_id)
+            into cnt
+            from TBL_MARKETING_ACTIVITY_NEW t
+           where t.brid = rec.brid
+             AND T.STATUS = 1;
+          if (cnt > 2) then
+            select COUNT(DISTINCT d.vendor_name)
+              INTO cun
+              from TBL_MARKETING_ACTIVITY_NEW t,
+                   branch_dtl_new             a,
+                   tbl_po_master              b,
+                   TBL_VENDOR_MASTER          d
+             where t.brid = a.BRANCH_ID
+               and a.BRANCH_ID = b.branch_id
+               and b.vendor_id = D.VENDOR_ID
+               and a.BRANCH_ID = rec.brid;
+          
+            if (cun = 1) then
+              select t.brid
+                into b_id
+                from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+               where t.brid = a.BRANCH_ID
+                 and t.status = 1
+                 and a.BRANCH_ID = rec.brid;
+              update TBL_MARKETING_ACTIVITY_NEW v
+                 set v.status = 2, v.rm_verified_date = to_date(sysdate)
+               where v.brid = b_id;
+            end if;
+          end if;
+        end loop;
+      
+        ------growth------
+      
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_OS - y.ACTVTY_START_OS) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              t.ACTVTY_START_OS,
+                              t.actvty_end_os,
+                              DENSE_RANK() over(order by(t.ACTVTY_END_OS - t.ACTVTY_START_OS) desc) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 1
+                          and t.ACTVTY_END_OS is not null
+                          and a.reg_id = re_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 2, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+        ----NCA---
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_AVGCU - y.ACTVTY_START_AVGCUST) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              T.ACTVTY_END_AVGCU,
+                              T.ACTVTY_START_AVGCUST,
+                              DENSE_RANK() over(order by(T.ACTVTY_END_AVGCU - T.ACTVTY_START_AVGCUST) desc) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 1
+                          and t.ACTVTY_END_AVGCU is not null
+                          and a.reg_id = re_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 2, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+      
+        --------BDM------------------------
+      
+      elsif (ps_id = 713) then
+        select a.reg_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+           and t.department_id = 280
+           and t.firm_id = 1
+           and t.status_id = 1;
+        select count(n.BRANCH_ID)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a
+         where n.reg_id = re_id
+           and n.BRANCH_ID = a.brid
+           and a.status = 3;
+        v_id := round(b_count * (15 / 100) + d_id);
+        x_id := round(v_id / 5);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c
+                        where t.brid = a.BRANCH_ID
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          and t.status = 3
+                          and a.reg_id = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 22, m.bdm_verified_date = to_date(sysdate);
+      
+        ----duration days
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, y.DUR_DAYS, rownum rn
+                 from (select t.actvty_id, t.DUR_DAYS
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 3
+                          and a.reg_id = re_id
+                        order by t.dur_days desc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 22, m.bdm_verified_date = to_date(sysdate);
+        ---same vendor
+      
+        for rec IN (select t.brid
+                      from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                     where t.brid = a.BRANCH_ID
+                       and a.reg_id = re_id) loop
+        
+          select count(t.actvty_id)
+            into cnt
+            from TBL_MARKETING_ACTIVITY_NEW t
+           where t.brid = rec.brid
+             AND T.STATUS = 3;
+          if (cnt > 2) then
+            select COUNT(DISTINCT d.vendor_name)
+              INTO cun
+              from TBL_MARKETING_ACTIVITY_NEW t,
+                   branch_dtl_new             a,
+                   tbl_po_master              b,
+                   TBL_VENDOR_MASTER          d
+             where t.brid = a.BRANCH_ID
+               and a.BRANCH_ID = b.branch_id
+               and b.vendor_id = D.VENDOR_ID
+               and a.BRANCH_ID = rec.brid;
+          
+            if (cun = 1) then
+              select t.brid
+                into b_id
+                from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+               where t.brid = a.BRANCH_ID
+                 and t.status = 3
+                 and a.BRANCH_ID = rec.brid;
+              update TBL_MARKETING_ACTIVITY_NEW v
+                 set v.status = 22, v.bdm_verified_date = to_date(sysdate)
+               where v.brid = b_id;
+            end if;
+          end if;
+        end loop;
+      
+        ------growth------
+      
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_OS - y.ACTVTY_START_OS) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              t.ACTVTY_START_OS,
+                              t.actvty_end_os,
+                              DENSE_RANK() over(order by(t.ACTVTY_END_OS - t.ACTVTY_START_OS) desc) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 3
+                          and t.ACTVTY_END_OS is not null
+                          and a.reg_id = re_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 22, m.bdm_verified_date = to_date(sysdate);
+      
+        commit;
+        ----NCA---
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_AVGCU - y.ACTVTY_START_AVGCUST) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              T.ACTVTY_END_AVGCU,
+                              T.ACTVTY_START_AVGCUST,
+                              DENSE_RANK() over(order by(T.ACTVTY_END_AVGCU - T.ACTVTY_START_AVGCUST) desc) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 3
+                          and t.ACTVTY_END_AVGCU is not null
+                          and a.reg_id = re_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 22, m.bdm_verified_date = to_date(sysdate);
+      
+        commit;
+      
+        ---if  fzm ------------
+      elsif (ps_id = -36) then
+        select a.fzm_id
+          into zn_id
+          from branch_dtl_new t, tbl_fzm_master a, employee_master b
+         where a.region_id = t.reg_id
+           and b.branch_id = t.BRANCH_ID
+           and b.emp_code = p_pageval2
+           and b.firm_id = 1
+           and b.status_id = 1;
+      
+        select count(n.BRANCH_ID)
+          into b_count
+          from branch_dtl_new             n,
+               tbl_marketing_activity_new a,
+               tbl_fzm_master             b
+         where b.fzm_id = zn_id
+           and n.BRANCH_ID = a.brid
+           and n.reg_id = b.region_id
+           and a.status = 3;
+        v_id := round(b_count * (10 / 100) + d_id);
+        x_id := round(v_id / 5);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from mana0809.TBL_MARKETING_ACTIVITY_NEW t,
+                              mana0809.branch_dtl_new             a,
+                              mana0809.tbl_po_master              b,
+                              mana0809.tbl_po_invoice_mst         c,
+                              mana0809.tbl_fzm_master             d
+                        where t.brid = a.BRANCH_ID
+                          and t.actvty_id = b.act_id
+                          and b.po_id = c.po_id
+                          and a.reg_id = d.region_id
+                          and t.status = 3
+                          and d.fzm_id = zn_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 4, m.fzm_verified_date = to_date(sysdate);
+      
+        ----duration days
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select t.actvty_id,
+                      t.DUR_DAYS,
+                      DENSE_RANK() over(order by t.DUR_DAYS desc) as rn
+                 from TBL_MARKETING_ACTIVITY_NEW t,
+                      branch_dtl_new             a,
+                      tbl_fzm_master             b
+                where t.brid = a.BRANCH_ID
+                  and a.reg_id = b.region_id
+                  and t.status = 3
+                  and b.fzm_id = zn_id) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 4, m.fzm_verified_date = to_date(sysdate);
+        ---same vendor
+      
+        for rec IN (select t.brid
+                      from TBL_MARKETING_ACTIVITY_NEW t,
+                           branch_dtl_new             a,
+                           tbl_fzm_master             b
+                     where t.brid = a.BRANCH_ID
+                       and a.reg_id = b.region_id
+                       and b.fzm_id = zn_id) loop
+        
+          select count(t.actvty_id)
+            into cnt
+            from TBL_MARKETING_ACTIVITY_NEW t
+           where t.brid = rec.brid
+             AND T.STATUS = 3;
+        
+          if (cnt > 2) then
+            select count(distinct t.final_vendor_name)
+              into cun
+              from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+             where t.brid = a.BRANCH_ID
+               and a.BRANCH_ID = rec.brid;
+            if (cun = 1) then
+              select t.brid
+                into b_id
+                from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+               where t.brid = a.BRANCH_ID
+                 and t.status = 3
+                 and a.BRANCH_ID = br_ids;
+              update TBL_MARKETING_ACTIVITY_NEW v
+                 set v.status = 4, v.fzm_verified_date = to_date(sysdate)
+               where v.brid = rec.brid;
+            end if;
+          end if;
+        end loop;
+      
+        ------fzm growth-----------
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_OS - y.ACTVTY_START_OS) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              t.ACTVTY_START_OS,
+                              t.actvty_end_os,
+                              DENSE_RANK() over(order by(t.ACTVTY_END_OS - t.ACTVTY_START_OS) desc) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_fzm_master             b
+                        where t.brid = a.BRANCH_ID
+                          and a.reg_id = b.region_id
+                          and t.status = 3
+                          and t.ACTVTY_END_OS is not null
+                          and b.fzm_id = zn_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 4, m.fzm_verified_date = to_date(sysdate);
+        ---nca
+      
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_AVGCU - y.ACTVTY_START_AVGCUST) mus,
+                      y.rn
+                 from (select t.actvty_id,
+                              T.ACTVTY_END_AVGCU,
+                              T.ACTVTY_START_AVGCUST,
+                              DENSE_RANK() over(order by(T.ACTVTY_END_AVGCU - T.ACTVTY_START_AVGCUST)) as rn
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_fzm_master             b
+                        where t.brid = a.BRANCH_ID
+                          and t.status = 3
+                          and t.ACTVTY_END_AVGCU is not null
+                          and a.reg_id = b.region_id
+                          and b.fzm_id = zn_id) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 4, m.fzm_verified_date = to_date(sysdate);
+      
+        commit;
+      
+      elsif (cunt > 0) then
+        -- ABR
+        select count(a.actvty_id)
+          into b_count
+          from mana0809.tbl_marketing_activity_new a
+         where a.status = 15;
+        v_id := round(b_count * (1 / 100));
+        x_id := round(v_id / 5);
+      
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+      
+        ---act cost
+      
+        merge into mana0809.TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select distinct t.actvty_id, t.brid, c.payable_amt
+                         from mana0809.TBL_MARKETING_ACTIVITY_NEW t,
+                              mana0809.tbl_po_master              b,
+                              mana0809.tbl_po_invoice_mst         c,
+                              mana0809.tbl_fzm_master             d
+                        where t.actvty_id = b.act_id
+                          and b.po_id = c.po_id
+                          and t.status = 15
+                          and c.payable_amt is not null
+                        order by c.payable_amt desc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 24; --ABR
+      
+        ----duration days
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select t.actvty_id,
+                      t.DUR_DAYS,
+                      DENSE_RANK() over(order by t.DUR_DAYS desc) as rn
+                 from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                where t.status = 15) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 24; --ABR
+      
+        ---same vendor
+      
+        for rec IN (select t.brid
+                      from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                     where t.status = 15) loop
+        
+          select count(t.actvty_id)
+            into cnt
+            from TBL_MARKETING_ACTIVITY_NEW t
+           where t.brid = rec.brid
+             AND T.STATUS = 15;
+        
+          if (cnt > 2) then
+            select count(distinct t.final_vendor_name)
+              into cun
+              from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+             where t.brid = a.BRANCH_ID
+               and a.BRANCH_ID = rec.brid;
+            if (cun = 1) then
+              select t.brid
+                into b_id
+                from TBL_MARKETING_ACTIVITY_NEW t, branch_dtl_new a
+               where t.brid = a.BRANCH_ID
+                 and t.status = 15
+                 and a.BRANCH_ID = br_ids;
+              update TBL_MARKETING_ACTIVITY_NEW v
+                 set v.status = 24 --ABR
+               where v.brid = rec.brid;
+            end if;
+          end if;
+        end loop;
+      
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_OS - y.ACTVTY_START_OS) mus,
+                      rownum rn
+                 from (select t.actvty_id,
+                              t.ACTVTY_START_OS,
+                              t.actvty_end_os,
+                              DENSE_RANK() over(order by(t.ACTVTY_END_OS - t.ACTVTY_START_OS) desc) as rn
+                         from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                        where t.status = 15
+                          and t.ACTVTY_END_OS is not null) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 24; --ABR
+      
+        ---nca
+      
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id,
+                      (y.ACTVTY_END_AVGCU - y.ACTVTY_START_AVGCUST) mus,
+                      y.rn
+                 from (select t.actvty_id,
+                              T.ACTVTY_END_AVGCU,
+                              T.ACTVTY_START_AVGCUST,
+                              DENSE_RANK() over(order by(T.ACTVTY_END_AVGCU - T.ACTVTY_START_AVGCUST)) as rn
+                         from mana0809.TBL_MARKETING_ACTIVITY_NEW t
+                        where t.status = 15
+                          and t.ACTVTY_END_AVGCU is not null) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= 1)
+        when matched then
+          update set m.status = 24; --ABR
+      
+        commit;
+      
+      end if;
+    
+    end if;
+  end if;*/
+  
+  elsif p_pageval1 = 'rm_check_scenerio' then
+  
+    if p_ParVal = '0' then
+      -- HO
+      select count(a.actvty_id)
+        into b_count
+        from mana0809.tbl_marketing_activity_new a
+       where a.status = 5
+       AND to_date(a.enter_date)>to_date('31-mar-2022');
+      v_id := round(b_count * (3 / 100));
+      x_id := round(v_id);
+    
+      IF (x_id = 0) then
+        x_id := 1;
+      
+      end if;
+    
+      ---act cost
+    
+      merge into mana0809.TBL_MARKETING_ACTIVITY_NEW m
+      using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+               from (select distinct t.actvty_id, t.brid, c.payable_amt
+                       from mana0809.TBL_MARKETING_ACTIVITY_NEW t,
+                            mana0809.tbl_po_master              b,
+                            mana0809.tbl_po_invoice_mst         c,
+                            mana0809.tbl_fzm_master             d
+                      where t.actvty_id = b.act_id
+                        and b.po_id = c.po_id
+                        and t.status = 5
+                        AND to_date(t.enter_date)>to_date('31-mar-2022')
+                        and c.payable_amt is not null
+                      order by c.payable_amt desc) y) x
+      on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+      when matched then
+        update set m.status = 14; --HO Growth
+    COMMIT;
+      
+    
+    else
+      --------rm
+      select t.post_id,t.department_id
+        into ps_id,dep_id
+        from employee_master t
+       where t.emp_code = p_pageval2;
+    
+      if (ps_id = 199) then
+        select a.reg_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+          and t.status_id = 1;
+        select count(a.actvty_id)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a
+         where n.reg_id = re_id
+           and n.BRANCH_ID = a.brid
+           AND to_date(a.enter_date)>to_date('31-mar-2022')
+           and a.status = 1;
+        v_id := round(b_count * (25 / 100));
+        x_id := round(v_id);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c
+                        where t.brid = a.BRANCH_ID
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          and t.status = 1
+                          AND to_date(t.enter_date)>to_date('31-mar-2022')
+                          and a.reg_id = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 2, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+       
+      ----------------------------------
+         ELSIF (ps_id = -36) then
+        select f.fzm_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a,tbl_fzm_master f
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+           AND a.reg_id = f.region_id
+          and t.status_id = 1;
+          
+        select count(a.actvty_id)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a,tbl_fzm_master f
+         where n.reg_id = f.region_id
+           AND f.fzm_id = re_id
+           and n.BRANCH_ID = a.brid
+           AND to_date(a.enter_date)>to_date('31-mar-2022')
+           and a.status = 3;
+        v_id := round(b_count * (10 / 100));
+        x_id := round(v_id);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c,
+                              tbl_fzm_master f
+                        where t.brid = a.BRANCH_ID
+                        AND a.reg_id  = f.region_id
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          AND to_date(t.enter_date)>to_date('31-mar-2022')
+                          and t.status = 3
+                          and  f.fzm_id  = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 4, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+        
+        ---------------
+       ELSIF (ps_id = 73) then
+        select f.fzm_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a,tbl_fzm_master f
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+           AND a.reg_id = f.region_id
+          and t.status_id = 1;
+          
+        select count(a.actvty_id)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a,tbl_fzm_master f
+         where n.reg_id = f.region_id
+           AND f.fzm_id = re_id
+           and n.BRANCH_ID = a.brid
+           AND to_date(a.enter_date)>to_date('31-mar-2022')
+           and a.status = 3;
+        v_id := round(b_count * (15 / 100));
+        x_id := round(v_id);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c,
+                              tbl_fzm_master f
+                        where t.brid = a.BRANCH_ID
+                        AND a.reg_id  = f.region_id
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          AND to_date(t.enter_date)>to_date('31-mar-2022')
+                          and t.status = 3
+                          and  f.fzm_id  = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 22, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+        
+        --------------------
+       ELSIF (dep_id = 616) then
+        select f.fzm_id
+          into re_id
+          from MANA0809.EMPLOYEE_MASTER t, branch_dtl_new a,tbl_fzm_master f
+         where t.emp_code = p_pageval2
+           and t.branch_id = a.BRANCH_ID
+           AND a.reg_id = f.region_id
+          and t.status_id = 1;
+          
+        select count(a.actvty_id)
+          into b_count
+          from branch_dtl_new n, tbl_marketing_activity_new a,tbl_fzm_master f
+         where n.reg_id = f.region_id
+          -- AND f.fzm_id = re_id
+           and n.BRANCH_ID = a.brid
+           AND to_date(a.enter_date)>to_date('31-mar-2022')
+           and a.status = 15;
+        v_id := round(b_count * (1 / 100));
+        x_id := round(v_id);
+        IF (x_id = 0) then
+          x_id := 1;
+        
+        end if;
+        ---act cost
+        merge into TBL_MARKETING_ACTIVITY_NEW m
+        using (select y.actvty_id, nvl(y.payable_amt, 0), rownum rn
+                 from (select t.actvty_id, c.payable_amt
+                         from TBL_MARKETING_ACTIVITY_NEW t,
+                              branch_dtl_new             a,
+                              tbl_po_master              b,
+                              tbl_po_invoice_mst         c,
+                              tbl_fzm_master f
+                        where t.brid = a.BRANCH_ID
+                        AND a.reg_id  = f.region_id
+                          and t.actvty_id = b.act_id
+                          and a.BRANCH_ID = t.brid
+                          and c.po_id = b.po_id
+                          AND to_date(t.enter_date)>to_date('31-mar-2022')
+                          and t.status = 15
+                          --and  f.fzm_id  = re_id
+                        order by c.payable_amt asc) y) x
+        on (m.actvty_id = x.actvty_id and x.rn <= x_id)
+        when matched then
+          update set m.status = 24, m.rm_verified_date = to_date(sysdate);
+      
+        commit;
+       
+      
+      
+      end if;
+    
+    end if;
+  end if;
+
+
+end PROC_AH_MARKETING_VERIFICATION;

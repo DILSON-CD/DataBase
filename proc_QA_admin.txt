@@ -1,0 +1,552 @@
+create or replace procedure proc_QA_admin(p_flag     in varchar2,
+                                          p_pageval  in varchar2,
+                                          p_parval1  in varchar2,
+                                          p_parval2  in varchar2,
+                                          p_parval3  in varchar2,
+                                          qry_result OUT RESULT_TYPE.QRY_RESULT)
+
+ is
+ v_str      array;
+  v_qst      array;
+   v_ans      array;
+ ps_id      number;
+ cntchk NUMBER;
+ b_id       number;
+ dep_id     number;
+ t_mark     NUMBER;
+ v_catA     number;
+  v_catB     number;
+  v_catC     number;
+   v_catD     number;
+  v_catE     number;
+  v_catF     number;
+  verf_name   varchar2(60);
+  v_catID     varchar2(10);
+  v_score     number;
+  v_sum       number;
+  v_total       number;
+  
+  v_seq       number;
+  v_callid    number;
+  v_qstcnt    number;
+  v_cnt       number;
+  notify         number;
+  cat            VARCHAR2(60);
+  v_qns        VARCHAR2(4000);
+
+begin
+  open QRY_RESULT for
+    select '111' from dual;
+
+ if p_pageval='get_quest' then
+     open QRY_RESULT for 
+    --select t.qa_id, t.qa_qstns,t.status_id,t.flag,t.score from TBL_QA_MODULE_QST t
+   select t.qa_id, t.qa_qstns,t.status_id,t.flag,t.score,t.qust_no from TBL_QA_MODULE_QST t
+     where t.status_id = 1
+       
+       order by t.qa_id;
+  
+  elsif p_pageval = 'check_al_add' then
+    select t.post_id, t.branch_id, t.department_id
+      into ps_id, b_id, dep_id
+      from employee_master t
+     where t.emp_code = p_parval1
+       and t.status_id = 1;
+       
+      /* elsif p_pageval = 'referens_show' then
+         OPEN QRY_RESULT FOR
+        select t.doc_data,t.doc_id from dms.tbl_qa_referens t ;*/
+        
+        
+       elsif p_pageval = 'get_QAemp_dropdwn' then
+     
+       OPEN QRY_RESULT FOR
+   select c.emp_code,c.emp_name,b.col_language,b.bucket_id
+  from tbl_crc_emp_dtls c, tbl_crc_bucket_emp_dtl b
+ where c.post_id = 1
+   and c.status_id = 1
+   and c.emp_code = b.emp_code
+   order by b.col_language;
+  
+   
+    /* elsif p_flag = 'get_emp_dtls' then 
+         
+      open QRY_RESULT for   
+      select t.camp_tdy_lead,
+       t.camp_tdy_followup,
+       t.camp_pending_lead,
+       t.camp_pending_followup,
+       t.camp_tdy_noncontact,
+       t.camp_non_contact,
+       t.camp_crm,
+       t.camp_callback,
+       t.camp_lost_cust,
+       t.camp_redemption,
+       t.camp_redem_callbck,
+       t.camp_othercamp,
+       t.camp_missedcall,
+       t.camp_redemtn_noncontact,
+       t.date_assign 
+ from tbl_crc_emp_camp_assign t 
+ where t.emp_id = v_str(1);
+  */
+
+ elsif p_pageval = 'get_checklist_qst_ah' then
+     open QRY_RESULT for 
+    select t.qa_id, t.qa_qstns,t.status_id from TBL_QA_MODULE_QST t;
+   -- select t.qust_no, t.qa_qstns,t.status_id from TBL_QA_MODULE_QST t;
+   /* v_str := splitstr(p_parval1, '~');
+  
+    open QRY_RESULT for
+      select a.ch_id, a.ch_qstns, a.flag
+        from TBL_MARKETING_CHECKLIST_QST a
+       where a.status_id = 1
+         and a.before_after_status = v_str(2);*/
+         
+  /*elsif p_pageval='get_quest' then
+        open QRY_RESULT for 
+    select t.qa_qstns from TBL_QA_MODULE_QST t;*/
+    
+     elsif p_pageval ='total_mrk' then
+       
+  v_catA := 0;    
+  v_catB := 0;   
+  v_catC := 0;   
+  v_catD := 0;  
+  v_catE := 0;  
+  v_catF := 0;
+  v_total:= 0;
+  v_qstcnt:=0;
+  v_cnt:=0;
+  v_score:=0;
+  v_sum:=0;
+  
+   --v_str := splitstr(p_parval3, '~');
+       v_qst := splitstr(p_parval1, '!');
+           
+        
+    for i in 1..v_qst.count-1 loop
+      
+    v_ans := splitstr(v_qst(i), '^');
+          
+    --for j in i+1..v_ans.count loop
+      
+     
+      if (v_ans(2) = 'YES') then 
+        v_sum:=0;
+        v_cnt:=1;
+         select q.category_id,q.score into v_catID,v_score from tbl_qa_module_qst q where q.qa_id = v_ans(1);
+         
+         if v_catID = 'A' then
+           v_catA:= v_catA + v_score;
+           elsif v_catID = 'B' then
+             v_catB:= v_catB + v_score;
+             elsif v_catID = 'C' then
+             v_catC:= v_catC + v_score;
+             elsif v_catID = 'D' then
+             v_catD:= v_catD + v_score;
+             elsif v_catID = 'E' then
+             v_catE:= v_catE + v_score;
+             elsif v_catID = 'F' then
+             v_catF:= v_catF + v_score;
+           end if;
+           v_sum:=v_score;
+          elsif (v_ans(2) = 'N/A') then 
+        v_sum:=0;
+        v_cnt:=1;
+         select q.category_id,q.score into v_catID,v_score from tbl_qa_module_qst q where q.qa_id = v_ans(1);
+         
+         if v_catID = 'A' then
+           v_catA:= v_catA + v_score;
+           elsif v_catID = 'B' then
+             v_catB:= v_catB + v_score;
+             elsif v_catID = 'C' then
+             v_catC:= v_catC + v_score;
+             elsif v_catID = 'D' then
+             v_catD:= v_catD + v_score;
+             elsif v_catID = 'E' then
+             v_catE:= v_catE + v_score;
+             elsif v_catID = 'F' then
+             v_catF:= v_catF + v_score;
+           end if;
+           
+         v_sum:=v_score;
+        
+     /*  elsif (v_ans(2) = 'N/A') then 
+        v_cnt:=0;
+        v_sum:=0;
+        else 
+          v_cnt:=1;
+           v_sum:=0;
+          end if;
+       */
+       end if;
+       v_total:= v_total + v_sum;
+        v_qstcnt:=v_qstcnt + v_cnt;
+       
+      
+    --end loop;
+    
+  end loop;
+   open QRY_RESULT for
+   select v_total from dual;
+  
+   elsif p_pageval ='Qst_confirm' then
+        
+  v_catA := 0;    
+  v_catB := 0;   
+  v_catC := 0;   
+  v_catD := 0;  
+  v_catE := 0;  
+  v_catF := 0;
+  v_total:= 0;
+  v_qstcnt:=0;
+  
+   v_str := splitstr(p_parval3, '~');
+       v_qst := splitstr(p_parval1, '!');
+           
+        
+    for i in 1..v_qst.count-1 loop
+      
+    v_ans := splitstr(v_qst(i), '^');
+          
+    --for j in i+1..v_ans.count loop
+      
+     
+      if (v_ans(2) = 'YES') then 
+        v_sum:=0;
+        v_cnt:=1;
+         select q.category_id,q.score into v_catID,v_score from tbl_qa_module_qst q where q.qa_id = v_ans(1);
+         
+         if v_catID = 'A' then
+           v_catA:= v_catA + v_score;
+           elsif v_catID = 'B' then
+             v_catB:= v_catB + v_score;
+             elsif v_catID = 'C' then
+             v_catC:= v_catC + v_score;
+             elsif v_catID = 'D' then
+             v_catD:= v_catD + v_score;
+             elsif v_catID = 'E' then
+             v_catE:= v_catE + v_score;
+             elsif v_catID = 'F' then
+             v_catF:= v_catF + v_score;
+           end if;
+           v_sum:=v_score;
+          elsif (v_ans(2) = 'N/A') then 
+        v_sum:=0;
+        v_cnt:=1;
+         select q.category_id,q.score into v_catID,v_score from tbl_qa_module_qst q where q.qa_id = v_ans(1);
+         
+         if v_catID = 'A' then
+           v_catA:= v_catA + v_score;
+           elsif v_catID = 'B' then
+             v_catB:= v_catB + v_score;
+             elsif v_catID = 'C' then
+             v_catC:= v_catC + v_score;
+             elsif v_catID = 'D' then
+             v_catD:= v_catD + v_score;
+             elsif v_catID = 'E' then
+             v_catE:= v_catE + v_score;
+             elsif v_catID = 'F' then
+             v_catF:= v_catF + v_score;
+           end if;
+           
+         v_sum:=v_score;
+        
+     /*  elsif (v_ans(2) = 'N/A') then 
+        v_cnt:=0;
+        v_sum:=0;
+        else 
+          v_cnt:=1;
+           v_sum:=0;
+          end if;
+       */
+       end if;
+       v_total:= v_total + v_sum;
+        v_qstcnt:=v_qstcnt + v_cnt;
+       
+      
+    --end loop;
+    
+  end loop;
+       
+
+  
+  v_seq:=QA_ID.Nextval;
+  
+  SELECT COUNT(*) INTO cntchk FROM TBL_QA_QST_UPDATION t WHERE t.mob_nub = v_str(2) AND t.verifid_by=p_parval2 and t.emp_code=v_str(1);
+  IF (cntchk = 0) THEN
+
+                                  
+                                 insert into TBL_QA_QST_UPDATION (CALL_ID,
+                                 EMP_CODE,
+                                 MOB_NUB,
+                                 QST_ANS,
+                                 VERIFY_DATE,
+                                 VERIFID_BY,
+                                 A,
+                                 B,
+                                 C,
+                                 D,
+                                 E,
+                                 F,
+                                 TOTAL_MARK,
+                                 QA_STATUS,QA_COUNT)values(v_seq, v_str(1), v_str(2),p_parval1,sysdate,p_parval2,v_catA,v_catB,v_catC,v_catD,v_catE,v_catF,v_total,1,v_qstcnt);                                 
+                                 commit;
+                      /* proc_QA_score ('QA_Score_dtl1', p_parval1, v_str(1), v_str(2), v_seq, qry_result );  */  
+
+               END IF;
+                                 
+                                 open QRY_RESULT for 
+                                 select '111' from dual;
+                                 
+    elsif p_pageval ='CONFIRM_DATA' then
+      v_str := splitstr(p_parval1, '~');
+      select e.emp_name into verf_name from employee_master e where e.emp_code=v_str(6);
+      select t.call_id into v_callid from TBL_QA_QST_UPDATION t where t.emp_code=v_str(1) and t.mob_nub=v_str(2) and t.verifid_by= v_str(6);
+      
+     insert into tbl_qa_module  
+        (emp_code, mob_no, lang_name , call_date,remarks,verified_by,updated,rating,fatal_error,wow,qa_name,CALL_ID)
+      values
+        (v_str(1), v_str(2), v_str(3), v_str(4),v_str(5),v_str(6),sysdate,v_str(7),v_str(8),v_str(9),verf_name,v_callid);
+        
+                                 commit;
+       SELECT t.total_mark INTO t_mark FROM TBL_QA_QST_UPDATION t WHERE t.call_id=v_callid; 
+       IF v_str(9)= 1 THEN                 
+       UPDATE tbl_qa_module t SET t.final_score=100 WHERE t.call_id=v_callid AND t.wow=1;
+       --UPDATE tbl_qa_module t SET t.final score=t_mark WHERE t.call_id=v_callid ;
+       ELSIF v_str(8) = '0^0^0' THEN
+          UPDATE tbl_qa_module t SET t.final_score=t_mark WHERE t.call_id=v_callid;
+         ELSE
+          UPDATE tbl_qa_module t SET t.final_score=0 WHERE t.call_id=v_callid ;
+        END IF;
+COMMIT; 
+select t.qst_ans into v_qns from TBL_QA_QST_UPDATION t where t.call_id=v_callid;
+proc_QA_score ('QA_Score_dtl1', v_qns, v_str(1), v_str(2), v_callid, qry_result ); 
+                                 open QRY_RESULT for 
+                                 select 'successfully Confirmed' from dual;
+                                 
+
+
+
+ elsif p_pageval = 'QAGraph' then
+  
+    if p_parval1 = 1 then
+      -- Daily Performance
+    
+      open QRY_RESULT for
+      
+      select x.status, sum(x.cnt)
+          from (select 'OPENING PROCEDURE' status, SUM(t.a) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+ AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'CALL HANDLING SKILL' status, SUM(t.b) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'SOFT SKILLS' status, SUM(t.c) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'HOLD PROCEDURE' status, SUM(t.d) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'BUSINESS DEVELIOPMENT' status, SUM(t.e) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'CLOSING PROCEDURE' status, SUM(t.f) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date) = trunc(SYSDATE)
+UNION ALL
+select 'WOW' status, COUNT(t.wow) cnt
+FROM tbl_qa_module t
+WHERE t.emp_code=p_parval2
+ AND trunc(t.updated) = trunc(SYSDATE) 
+ UNION ALL
+select 'fatal error' status, COUNT(t.fatal_error) cnt
+FROM tbl_qa_module t
+WHERE t.emp_code=p_parval2
+AND t.fatal_error IS NOT NULL
+AND trunc(t.updated) = trunc(SYSDATE))x
+GROUP BY x.status,x.cnt;
+     
+    
+    elsif p_parval1 = 2 then
+      -- Monthly Performance
+    
+      open QRY_RESULT for
+      
+      select x.status, sum(x.cnt)
+          from (select 'OPENING PROCEDURE' status, SUM(t.a) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=373706
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+UNION ALL
+select 'CALL HANDLING SKILL' status, SUM(t.b) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+
+UNION ALL
+select 'SOFT SKILLS' status, SUM(t.c) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+
+UNION ALL
+select 'HOLD PROCEDURE' status, SUM(t.d) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+
+UNION ALL
+select 'BUSINESS DEVELIOPMENT' status, SUM(t.e) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+
+UNION ALL
+select 'CLOSING PROCEDURE' status, SUM(t.f) cnt
+FROM tbl_qa_qst_updation t
+WHERE t.emp_code=p_parval2
+AND trunc(t.verify_date, 'MM') = trunc(sysdate, 'MM')
+UNION ALL
+select 'WOW' status, SUM(t.wow) cnt
+FROM tbl_qa_module t
+WHERE t.emp_code=p_parval2
+AND trunc(t.updated, 'MM') = trunc(sysdate, 'MM')
+UNION ALL
+select 'fatal error' status, COUNT(t.fatal_error) cnt
+FROM tbl_qa_module t
+WHERE t.emp_code=p_parval2
+AND t.fatal_error IS NOT NULL
+AND trunc(t.updated, 'MM') = trunc(sysdate, 'MM')
+)x
+GROUP BY x.status,x.cnt;
+
+   elsif p_parval1 = 4 then
+      -- Employee Attendance
+      open QRY_RESULT for
+        select t.col_language "Group", count(t.emp_code) "Attendance"
+          from tbl_crc_bucket_emp_dtl t
+         group by t.col_language;
+    
+    end if;
+    elsif p_pageval='notify' then
+      
+    select count(*) into notify
+      from tbl_my_qa t
+     where t.status=2 ;
+      
+            if (notify>0) then   
+               open QRY_RESULT for
+               select '111' from dual;
+             
+               end if;
+--------------------------------------claim_data-----start--------------   
+ elsif p_pageval='Get_QAclaim_dtl' then
+       
+       open QRY_RESULT for 
+   --  select  t.call_id || '¥' || tt.cust_name, t.mob_no
+   select  t.call_id || '-' || tt.cust_name, t.mob_no
+       from tbl_qa_module t, tbl_crc_mst tt
+      where to_char(t.mob_no) = tt.mobile_number
+      and t.verified_by=p_parval1
+        and not exists (select *
+               from tbl_my_qa u
+              where u.qa_mobile = to_char(t.mob_no)
+                and u.status = 2);
+        
+        
+          elsif p_pageval='pop_fatal' then
+          if p_parval1=7 then
+          cat:='G';
+        end if;
+        open QRY_RESULT for
+       select T.QUST_NO,t.qa_qstns,t.qa_id from TBL_QA_MODULE_QST t
+       where t.status_id = 2
+       and t.flag=3
+       and t.category_id=cat
+       order by t.qa_id; 
+          
+        elsif p_flag='popup_mark' then
+       
+       if p_parval1=1 then
+         
+       cat:='A';
+       elsif
+          p_parval1=2 then
+          cat:='B';
+         elsif
+           p_parval1=3 then
+          cat:='C';
+         elsif
+           p_parval1=4 then
+          cat:='D';
+         elsif
+           p_parval1=5 then
+          cat:='E';
+         elsif
+           p_parval1=6 then
+          cat:='F';
+         
+          end if;
+         open QRY_RESULT for
+         
+       select T.QUST_NO,t.qa_qstns,t.score,t.qa_id from TBL_QA_MODULE_QST t
+       where t.status_id in (1,2)
+       and t.flag<>2
+       and t.category_id=cat
+       order by t.qa_id;
+                           
+              
+          elsif p_pageval = 'qaremarkfill' then
+    open QRY_RESULT for
+select q.emp_code || '~' ||
+       q.mob_nub || '~' ||
+       q.verify_date || '~' ||
+       q.verifid_by || '~' ||
+       q.a || '~' ||
+       q.b|| '~' ||
+       q.c|| '~' ||
+       q.d|| '~' ||
+       q.e|| '~' ||
+       q.f|| '~' ||
+        case
+             when  m.fatal_error = '0^0^0' then
+              'No Fatal error'
+             else
+              'Fatal error Found'
+           end || '~' ||
+       case
+             when  m.wow = 1 then
+              '*'
+             else
+              '0'
+           end || '~' ||
+       q.total_mark || '~' ||
+       q.qst_ans || '~' ||
+       m.fatal_error || '$'
+      from tbl_qa_qst_updation q,tbl_qa_module m where q.mob_nub=m.mob_no and q.mob_nub=p_pageval;
+         
+
+ 
+  
+---------------------------------------claim_data------end--------------       
+               
+end if;
+commit;
+
+
+
+
+end;

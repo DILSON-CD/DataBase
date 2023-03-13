@@ -1,0 +1,2677 @@
+create or replace procedure proc_twoway_conversion
+is
+V_count_N number;
+cnt number;
+total_trans number:=0;
+total_coupon number:=0;
+total_amount number:=0;
+begin
+
+---------------------------------EDIT 22/6/22-------------------
+--------crf-102144 -- CRC Conversion 358536---------- (previous line no:1635)--change when application slowness issue
+
+insert into updation_log(module,in_time) values('CRC_Convn',sysdate);
+  commit;
+  proc_crc_twoway_conversion;
+  update updation_log set out_time=sysdate where module='CRC_Convn';
+  commit;
+ -------------
+  insert into updation_log(module,in_time) values('proc_lostcusto_activate_rnew1',sysdate);
+  commit;
+  proc_lostcusto_activate_rnew1;
+  update updation_log set out_time=sysdate where module='proc_lostcusto_activate_rnew1';
+  commit;
+ ------------------nongold_vertical_convertion
+
+  insert into updation_log(module,in_time) values('proc_sales_nongold_meet_cnvrsn',sysdate);
+  commit;
+  proc_sales_nongold_meet_cnvrsn;
+  update updation_log set out_time=sysdate where module='proc_sales_nongold_meet_cnvrsn';
+  commit;
+
+--------------------SOCIAL MEDIA----------------------
+insert into updation_log(module,in_time) values('SOCIALMEDIA CONVERSION',sysdate);
+  commit;
+  proc_social_media_lead_convert;
+
+update updation_log t set t.out_time=sysdate where t.module='SOCIALMEDIA CONVERSION';
+    COMMIT;
+    ---- crf id 101443 --Add by 319373--
+
+    insert into updation_log(module,in_time) values('Marketing_act_auto_delete',sysdate);
+  commit;
+  --Proc_marketing_act_auto_delete;
+
+update updation_log t set t.out_time=sysdate where t.module='Marketing_act_auto_delete';
+    COMMIT;
+    -----------end crf id 101443
+-------start CRF ID : 100799  Add by 357276--------
+
+  insert into TBL_VIRTUAL_COUPON_COUNT_HIS y (y.state_id,
+                                            y.no_of_coupon,
+                                            y.no_of_trans,
+                                            y.no_of_used_coupon,
+                                            y.start_dt,
+                                            y.exp_date,
+                                            y.amount,
+                                            y.processed_dt,
+                                            y.HIS_DATE)
+         select g.state_id,
+                                            g.no_of_coupon,
+                                            g.no_of_trans,
+                                            g.no_of_used_coupon,
+                                            g.start_dt,
+                                            g.exp_date,
+                                            g.amount,
+                                            g.processed_dt,
+                                            sysdate
+
+       from TBL_VIRTUAL_COUPON_COUNT g;
+         execute immediate 'truncate table TBL_VIRTUAL_COUPON_COUNT';
+         commit;
+         select count(t.col_transaction_id) into total_trans
+  from mana0809.TBL_ONLINE_CTRAN_ENTRIES t, mana0809.customer p
+  left outer join mana0809.post_master pp
+    on (pp.sr_number = p.pin_serial)
+  left outer join mana0809.district_master d
+    on (d.district_id = pp.district_id)
+  left outer join mana0809.state_master e
+    on (d.state_id = e.state_id)
+ where (p.cust_id = t.cust_id)
+   and t.col_status = 2
+   and t.col_pay_mode = 4
+   and e.state_id is not null
+   and to_date(t.col_tra_date)=to_date(sysdate-1);
+
+   select t.parmtr_value INTO total_coupon from MANA0809.GENERAL_PARAMETER t WHERE t.module_id=7 AND t.parmtr_id=2230;
+   select a.parmtr_value INTO total_amount from MANA0809.GENERAL_PARAMETER a WHERE a.module_id=7 AND a.parmtr_id=2231;
+
+   /*total_coupon:=2500;
+   total_amount:=15000;*/
+
+insert into TBL_VIRTUAL_COUPON_COUNT t
+  (t.state_id,
+   t.no_of_coupon,
+   t.no_of_trans,
+   t.no_of_used_coupon,
+   t.start_dt,
+   t.exp_date,
+   t.amount,
+   t.processed_dt)
+   select distinct e.state_id,
+                floor((((count(t.col_transaction_id) / total_trans) * 100) * total_coupon) / 100),
+                count(t.col_transaction_id),
+                0,
+                '10-Mar-2021',
+                '10-Mar-2035',
+                floor((((count(t.col_transaction_id) / total_trans) * 100) * total_amount) / 100),
+                sysdate
+  from mana0809.TBL_ONLINE_CTRAN_ENTRIES t, mana0809.customer p
+  left outer join mana0809.post_master pp
+    on (pp.sr_number = p.pin_serial)
+  left outer join mana0809.district_master d
+    on (d.district_id = pp.district_id)
+  left outer join mana0809.state_master e
+    on (d.state_id = e.state_id)
+ where (p.cust_id = t.cust_id)
+   and t.col_status = 2
+   and t.col_pay_mode = 4
+   and e.state_id is not null
+   and to_date(t.col_tra_date)=to_date(sysdate-1)
+ group by e.state_id;
+ -------end CRF ID : 100799  Add by 357276--------
+   commit;
+ insert into updation_log(module,in_time) values('online_transflow',sysdate);
+  commit;
+  insert into TBL_ONLINE_TRANSFLOW(COL_TRAID,COL_PLEDGENO,COL_CUSTID,COL_TYPE,COL_STATUS,COL_TRADT,COL_TRADATE)
+  select '', '', t.cust_id, 0, 0, t.col_log_dt, trunc(t.col_log_dt)
+    from tbl_online_login_register t
+   where t.col_log_dt = trunc(sysdate - 1)
+     and t.col_cust_id not in
+         (select p.col_custid from MANA0809.TBL_ONLINE_TRANSFLOW p);
+         commit;
+
+  MERGE INTO tbl_online_transflow t
+    USING customer h
+    ON (t.col_custid = h.cust_id)
+  WHEN MATCHED THEN
+    UPDATE SET t.branch_id = h.branch_id,t.cust_name=h.cust_name where t.cust_name is null;
+     update updation_log set out_time=sysdate where module='online_transflow';
+  commit;
+
+ insert into updation_log(module,in_time) values('OTRNP_INSERTION',sysdate);
+  commit;
+
+
+Insert into TBL_CUSTOMER_CALL_DETAILS
+(
+  cust_id,
+  cust_name,
+  cust_type,
+  branch_id,
+  cust_mobno,
+  INSERTED_DATE
+)
+
+SELECT DISTINCT t1.cust_id,
+nvl(t1.cust_name,'NO NAME'),
+1,
+t1.branch_id,
+nvl(t4.phone2, 0),sysdate
+FROM mana0809.tbl_online_gl_cust_mst t1, mana0809.CUSTOMER t4
+LEFT JOIN mana0809.TBL_CUSTOMER_CALL_DETAILS t3
+ON t4.cust_id = t3.cust_id
+WHERE t1.cust_id not in
+(select l.cust_id cusId
+from mana0809.tbl_pledge_yesterday_live l
+where (substr(l.pledge_no, 9, 1) = 3))
+AND t3.cust_id IS NULL
+AND t4.cust_id = t1.cust_id
+AND trunc(t1.tra_dt) > '01-jan-2021' ;
+   commit;
+
+    update updation_log set out_time=sysdate where module='OTRNP_INSERTION';
+  commit;
+
+
+  insert into updation_log(module,in_time) values('BDCNG_INSERTION',sysdate);
+  commit;
+    ---BDCNG
+
+   Insert into TBL_CUSTOMER_CALL_DETAILS
+(
+  cust_id,
+  cust_name,
+  cust_type,
+  branch_id,
+  cust_mobno,
+  INSERTED_DATE
+)
+SELECT t1.cust_id, nvl(t1.cust_name,'NO NAME'),0,t1.branch_id,nvl(t4.phone2,0),sysdate
+  FROM mana0809.NEFT_CUSTOMER t1
+  LEFT JOIN mana0809.tbl_online_gl_cust_mst t2
+    ON t1.cust_id = t2.cust_id
+  LEFT JOIN mana0809.TBL_CUSTOMER_CALL_DETAILS t3
+    ON t1.cust_id = t3.cust_id
+  LEFT JOIN mana0809.CUSTOMER t4
+    ON t1.cust_id = t4.cust_id
+ WHERE t2.cust_id IS NULL
+   AND t3.cust_id IS NULL AND trunc(t1.tra_dt) >'01-nov-2020';
+   commit;
+    update updation_log set out_time=sysdate where module='BDCNG_INSERTION';
+  commit;
+
+
+    ---Other
+   insert into updation_log(module,in_time) values('OTHER_INSERTION',sysdate);
+  commit;
+
+   Insert into TBL_CUSTOMER_CALL_DETAILS
+(
+  cust_id,
+  cust_name,
+  cust_type,
+  branch_id,
+  cust_mobno,
+  INSERTED_DATE
+)
+select distinct t1.cust_id, nvl(t2.cust_name,'NO NAME'),2,t2.branch_id,nvl(t2.phone2,0),sysdate
+from mana0809.TBL_ONLINE_CTRAN_ENTRIES t1
+LEFT JOIN mana0809.CUSTOMER t2
+ON t2.cust_id=t1.cust_id
+LEFT JOIN mana0809.TBL_CUSTOMER_CALL_DETAILS t3
+ON t1.cust_id = t3.cust_id
+LEFT JOIN mana0809.tbl_online_gl_cust_mst t4
+ON t1.cust_id = t4.cust_id
+where t3.cust_id IS NULL
+and t4.cust_id IS NULL
+and t1.col_pay_mode <> 4
+and t1.col_pay_mode IN (1,2,3)
+and t1.col_status = 2
+and t1.cust_id=t2.cust_id
+and t1.tradate > '01-jan-2021';
+   commit;
+    update updation_log set out_time=sysdate where module='OTHER_INSERTION';
+  commit;
+
+
+  ---BDCNG_OTRNP_CONVERSION
+
+  insert into updation_log(module,in_time) values('BDCNG_OTRNP_CONVERSION',sysdate);
+  commit;
+
+   MERGE INTO TBL_CUSTOMER_CALL_DETAILS  t
+    USING (select distinct cust_id,tradate
+  from TBL_ONLINE_CTRAN_ENTRIES
+ where col_pay_mode = 4
+   and col_status = 2
+   and tradate = trunc(sysdate - 1)) h
+    ON (t.cust_id = h.cust_id)
+  WHEN MATCHED  THEN
+    UPDATE SET t.conversion_status = 1,t.converted_date=h.tradate where t.conversion_status=0;
+    commit;
+
+    update updation_log set out_time=sysdate where module='BDCNG_OTRNP_CONVERSION';
+  commit;
+
+ insert into updation_log(module,in_time) values('proc_LMS_penality',sysdate);
+  commit;
+   proc_LMS_penality;
+  update updation_log set out_time=sysdate where module=' proc_LMS_penality';
+  commit;
+-----------------------376292-CRF-113465-Start-----------------------
+
+  insert into mana0809.tbl_paperless_status_dtl
+(select t.note_id ,0,'','','',e.emp_code from mana0809.employee_master e, mana0809.TBL_PWA_NOTE_MST t,mana0809.TBL_PWA_NOTE_APPROVERS a
+       where t.status_id in (0,7,5)
+      and a.para_seq='F'
+      and a.note_id=t.note_id
+    and t.branch_id=0
+      -- and t.doc_type <> 2
+       and t.doc_type not in (2,22)
+       and e.emp_code=t.created_by
+       and e.status_id=1
+       and to_date(t.created_date)>to_date('12-OCT-2022') 
+       and not exists 
+       (select p.note_id from mana0809.tbl_paperless_status_dtl p where t.note_id=p.note_id ));
+ -----------------------376292-CRF-113465-Start-----------------------
+ -----------------------376292-CRF-113465-Start-----------------------
+   insert into updation_log(module,in_time) values('Implementation_creator_workalert',sysdate);
+  commit;
+  insert into tbl_ma_common_alert t(emp_code,module_id,entr_dt ,alert_message,status)
+select distinct e.emp_code,141,sysdate,'Update implementation status of Papperless Note. Path: HoApps-Papperless Report- Papperless Implementation Status Updation',1
+       from mana0809.employee_master e, mana0809.TBL_PWA_NOTE_MST t,TBL_PWA_NOTE_APPROVERS a
+       where t.status_id in (0,7,5)
+      and a.para_seq='F'
+      and a.note_id=t.note_id
+    and t.branch_id=0
+      -- and t.doc_type <> 2
+       and t.doc_type not in (2,22)
+       and e.emp_code=t.created_by
+       and e.status_id=1
+       and to_date(t.created_date)>to_date('12-OCT-2022') 
+       and to_date(sysdate) - to_date(a.updated_date) = 15
+       and not exists
+       (select p.note_id  from tbl_paperless_status_dtl p where t.note_id=p.note_id and p.select_option=1);
+  update updation_log set out_time=sysdate where module=' Implementation_creator_workalert';
+  commit;
+  ------------block alert to head--------------------
+  insert into updation_log(module,in_time) values('Implementation_Head_workalert',sysdate);
+  commit;
+     insert into tbl_ma_common_alert t(emp_code,module_id,entr_dt ,alert_message,status)
+select distinct e.emp_code,141,sysdate,'Update implementation status of Papperless Note. Path: HoApps-Papperless Report- Papperless Implementation Status Updation',1
+    from mana0809.employee_master e, department_mst d
+   where e.emp_code = d.dep_head
+     and d.dep_id in
+         (select distinct d.dep_id
+            from mana0809.employee_master  e,
+                 mana0809.TBL_PWA_NOTE_MST t,
+                 TBL_PWA_NOTE_APPROVERS    a,
+                 department_mst            d
+           where t.status_id in (0,7,5)
+             and a.para_seq = 'F'
+       and t.branch_id=0
+             and a.note_id = t.note_id
+             --and t.doc_type <> 2
+             and t.doc_type not in (2,22)
+             and e.department_id = d.dep_id   
+             and e.emp_code = t.created_by
+             and to_date(t.created_date)>to_date('12-oct-2022')
+             and e.status_id = 1
+             and to_date(sysdate) - to_date(a.updated_date) = 15
+             and not exists (select p.note_id
+                    from tbl_paperless_status_dtl p
+                   where t.note_id = p.note_id
+                     and p.select_option = 1));
+ update updation_log set out_time=sysdate where module=' Implementation_Head_workalert';
+  commit;
+
+  -----------------------376292-CRF-113465-End----------------------
+-----------------------376292-CRF-114974-start----------------------
+ insert into updation_log(module,in_time) values('PROC_NCA_CUSTOMERS',sysdate);
+  commit;
+  PROC_NCA_CUSTOMERS;
+  update updation_log set out_time=sysdate where module='PROC_NCA_CUSTOMERS';
+  commit;
+-----------------------376292-CRF-114974-End----------------------
+
+ -----------------------357276-CRF-102813-Start-----------------------
+
+   insert into updation_log(module,in_time) values('TAKEOVER_REPLEDGE_RPT',sysdate);
+
+  commit;
+
+ execute immediate 'truncate table TBL_TAKEOVER_REPLEDGE_RPT';
+---------------------Gold Loan Repledge------------------------
+ insert into mana0809.TBL_TAKEOVER_REPLEDGE_RPT t
+  (t.reg_name,
+   t.area_name,
+   t.fzm,
+   t.emp_name,
+   t.branch_id,
+   t.branch_name,
+   t.cust_id,
+   t.tra_dt,
+   t.amt,
+   t.age_days,
+   t.report_st)
+
+  select a.REG_NAME,
+         a.AREA_NAME,
+         f.fzm,
+         e.emp_name,
+         t.branch_id,
+         a.BRANCH_NAME,
+         t.cust_id,
+         t.tra_dt,
+         sum(decode(type, 'D', amount, -amount)) amt,
+         to_date(sysdate-1) - to_date(t.tra_dt) age_days,
+         0
+    from MANA0809.PLEDGE_REPLEDGE_TRAN t,
+         mana0809.branch_detail        a,
+         mana0809.tbl_fzm_master       f,
+         mana0809.employee_master      e
+   where t.branch_id = a.BRANCH_ID
+     and f.region_id = a.reg_id
+     and f.fzm_empcode = e.emp_code
+     and t.branch_id in (select t.branch_id
+                           from MANA0809.account_master t
+                          where t.account_no = 34449
+                            --and t.type = 'D'
+                            and t.balance <> 0)
+     and t.tra_dt >= '01-Apr-2021'
+     and t.tra_dt < to_date(sysdate)
+   group by a.REG_NAME,
+            a.AREA_NAME,
+            f.fzm,
+            e.emp_name,
+            t.branch_id,
+            a.BRANCH_NAME,
+            t.cust_id,
+            t.tra_dt
+  having sum(decode(type, 'D', amount, -amount)) > 0
+   order by a.REG_NAME;
+  commit;
+  ---------------------Take Over Loan------------------------
+  insert into mana0809.TBL_TAKEOVER_REPLEDGE_RPT t
+  (t.reg_name,
+   t.area_name,
+   t.fzm,
+   t.emp_name,
+   t.branch_id,
+   t.branch_name,
+   t.cust_id,
+   t.tra_dt,
+   t.amt,
+   t.age_days,
+   t.report_st)
+
+  select a.REG_NAME,
+       a.AREA_NAME,
+       f.fzm,
+       e.emp_name,
+       t.branch_id,
+       a.BRANCH_NAME,
+       t.cust_id,
+       t.tra_dt,
+       sum(decode(type, 'D', t.amount, -t.amount)) amt,
+       to_date(sysdate-1) - to_date(t.tra_dt) age_days,
+       1
+  from MANA0809.PLEDGE_REPLEDGE_TRAN t,
+       mana0809.branch_detail   a,
+       mana0809.tbl_fzm_master  f,
+       mana0809.employee_master e
+ where t.branch_id = a.BRANCH_ID
+   and f.region_id = a.reg_id
+   and f.fzm_empcode = e.emp_code
+   and t.branch_id in (select d.branch_id
+                         from MANA0809.account_master d
+                        where d.account_no = 34449
+                         -- and d.type = 'D'
+                          and d.balance <> 0)
+   and t.cust_id in (select g.cust_id from MANA0809.takeoverloan_mst g)
+   and t.tra_dt >= '01-Apr-2021'
+   and t.tra_dt < to_date(sysdate)
+ group by a.REG_NAME,
+          a.AREA_NAME,
+          f.fzm,
+          e.emp_name,
+          t.branch_id,
+          a.BRANCH_NAME,
+          t.cust_id,
+          t.tra_dt
+having sum(decode(type, 'D', t.amount, -t.amount)) > 0
+ order by a.REG_NAME;
+ commit;
+ ---------------------Take Over Loan Cash------------------------
+insert into mana0809.TBL_TAKEOVER_REPLEDGE_RPT t
+  (t.reg_name,
+   t.area_name,
+   t.fzm,
+   t.emp_name,
+   t.branch_id,
+   t.branch_name,
+   t.cust_id,
+   t.tra_dt,
+   t.amt,
+   t.age_days,
+   t.report_st)
+
+  select a.REG_NAME,
+         a.AREA_NAME,
+         f.fzm,
+         e.emp_name,
+         t.branch_id,
+         a.BRANCH_NAME,
+         t.cust_id,
+         t.tra_dt,
+         t.takeover_amt,
+         to_date(sysdate - 1) - to_date(t.tra_dt) age_days,
+         2
+    from MANA0809.takeoverloan_mst t,
+         mana0809.branch_detail    a,
+         mana0809.tbl_fzm_master   f,
+         mana0809.employee_master  e
+   where t.branch_id = a.BRANCH_ID
+     and f.region_id = a.reg_id
+     and f.fzm_empcode = e.emp_code
+     and t.branch_id in (select d.branch_id
+                           from MANA0809.account_master d
+                          where d.account_no = 34401
+                               -- and d.type = 'D'
+                            and d.balance <> 0)
+     and t.status_id = 4
+     and t.tra_dt >= '01-Apr-2021'
+     and t.tra_dt < to_date(sysdate)
+     and t.takeover_amt > 0;
+commit;
+ update updation_log set out_time=sysdate where module='TAKEOVER_REPLEDGE_RPT';
+  commit;
+-----------------------357276-CRF-102813-End-----------------------
+ ----end------
+/*  insert into updation_log(module,in_time) values('LMS_Merge',sysdate);
+  commit;
+  proc_lms_twoway_conversion;
+  update updation_log set out_time=sysdate where module='LMS_Merge';
+  commit;*/
+--------------------------crf-102144 -- CRC Conversion 358536----------------
+-------------------------------crf-102392 -- CRC_Conversion_Report 358141----------------
+
+insert into updation_log(module,in_time) values('CRC_Convn_Rpt',sysdate);
+  commit;
+  proc_in_out_twoway_conversion;
+  update updation_log set out_time=sysdate where module='CRC_Convn_Rpt';
+  commit;
+
+--------------------------crf-102144 -- CRC Conversion Report 358141-----end-----------
+
+-------------------------CRF-102010-- Hot Lead Conversion 357276-------------------
+
+insert into updation_log(module,in_time) values('HotLead',sysdate);
+  commit;
+insert into MANA0809.TBL_HOTLEAD_CONVERSION t
+  (t.lead_source_id,
+   t.lead_source_name,
+   t.branch_id,
+   t.fzm_id,
+   t.reg_id,
+   t.area_id,
+   t.inserted_on,
+   t.cust_id,
+   t.cust_name,
+   t.mobile_no,
+   t.products_id,
+   t.products,
+   t.age_wise_category,
+   t.converted_status,
+   t.lead_id,
+   t.pledge_no,
+   t.pledge_val,
+   t.tot_gross_wt,
+   t.created_date)
+  select y.lead_source_cat,
+         y.leadsource_name,
+         y.BRANCH_ID,
+         y.fzm_id,
+         y.reg_id,
+         y.area_id,
+         y.inserted_on,
+         s.cust_id,
+         y.cut_name,
+         y.mobile_no,
+         y.products_id,
+         y.products,
+         y.AGE_WISE_CATEGORY,
+         case
+           when s.pledge_no is null then
+            0
+           ELSE
+            1
+         END as Converted_sts,
+         y.lead_id,
+         s.pledge_no,
+         s.pledge_val,
+         s.tot_gross_wt,
+         s.created_date
+    from (select x.lead_id,
+                 x.lead_source_cat,
+                 x.leadsource_name,
+                 x.BRANCH_ID,
+                 x.fzm_id,
+                 x.reg_id,
+                 x.area_id,
+                 x.inserted_on,
+                 x.custo_id,
+                 x.cut_name,
+                 x.mobile_no,
+                 x.products_id,
+                 x.products,
+                 x.AGE_WISE_CATEGORY
+            from (select distinct l.lead_id,
+                                  l.lead_source_cat,
+                                  c.leadsource_name,
+                                  b.BRANCH_ID,
+                                  z.fzm_id,
+                                  b.reg_id,
+                                  b.area_id,
+                                  l.inserted_on,
+                                  '' as custo_id,
+                                  l.cut_name,
+                                  l.mobile_no,
+                                  l.products_id,
+                                  l.products,
+                                  case
+                                    when to_date(to_char(l.inserted_on,
+                                                         'HH24:MI:SS'),
+                                                 'HH24:MI:SS') <=
+                                         to_date('09:30:00', 'HH24:MI:SS') and
+                                         f.inserted_on <=
+                                         to_date(trunc(l.inserted_on) ||
+                                                 '09:40:00',
+                                                 'dd-mm-yy hh24:mi:ss') then
+                                     0
+                                    when to_date(to_char(l.inserted_on,
+                                                         'HH24:MI:SS'),
+                                                 'HH24:MI:SS') between
+                                         to_date('09:30:00', 'HH24:MI:SS') and
+                                         to_date('17:00:00', 'HH24:MI:SS') and
+                                         f.inserted_on between l.inserted_on and
+                                         l.inserted_on + interval '10'
+                                     minute then
+                                     0
+                                    when to_date(to_char(l.inserted_on,
+                                                         'HH24:MI:SS'),
+                                                 'HH24:MI:SS') >=
+                                         to_date('17:00:00', 'HH24:MI:SS') and
+                                         f.inserted_on between l.inserted_on and
+                                         to_date(trunc(l.inserted_on) + 1 ||
+                                                 '09:40:00',
+                                                 'dd-mm-yy hh24:mi:ss') then
+                                     0
+                                    else
+                                     case
+                                       when to_date(to_char(l.inserted_on,
+                                                            'HH24:MI:SS'),
+                                                    'HH24:MI:SS') <=
+                                            to_date('09:30:00', 'HH24:MI:SS') and
+                                            f.inserted_on between
+                                            to_date(trunc(l.inserted_on) ||
+                                                    '09:40:00',
+                                                    'dd-mm-yy hh24:mi:ss') and
+                                            to_date(trunc(l.inserted_on) ||
+                                                    '10:00:00',
+                                                    'dd-mm-yy HH24:MI:SS') then
+                                        1
+                                       when to_date(to_char(l.inserted_on,
+                                                            'HH24:MI:SS'),
+                                                    'HH24:MI:SS') between
+                                            to_date('09:30:00', 'HH24:MI:SS') and
+                                            to_date('17:00:00', 'HH24:MI:SS') and
+                                            f.inserted_on between
+                                            l.inserted_on + interval '10'
+                                        minute and l.inserted_on + interval '30'
+                                        minute then
+                                        1
+                                       when to_date(to_char(l.inserted_on,
+                                                            'HH24:MI:SS'),
+                                                    'HH24:MI:SS') >=
+                                            to_date('17:00:00', 'HH24:MI:SS') and
+                                            f.inserted_on between
+                                            to_date(trunc(l.inserted_on) + 1 ||
+                                                    '09:40:00',
+                                                    'dd-mm-yy hh24:mi:ss') and
+                                            to_date(trunc(l.inserted_on) + 1 ||
+                                                    '10:00:00',
+                                                    'dd-mm-yy hh24:mi:ss') then
+                                        1
+                                       else
+                                        case
+                                          when to_date(to_char(l.inserted_on,
+                                                               'HH24:MI:SS'),
+                                                       'HH24:MI:SS') <=
+                                               to_date('09:30:00', 'HH24:MI:SS') and
+                                               f.inserted_on between
+                                               to_date(trunc(l.inserted_on) ||
+                                                       '10:00:00',
+                                                       'dd-mm-yy hh24:mi:ss') and
+                                               to_date(trunc(l.inserted_on) ||
+                                                       '10:30:00',
+                                                       'dd-mm-yy hh24:mi:ss') then
+                                           2
+                                          when to_date(to_char(l.inserted_on,
+                                                               'HH24:MI:SS'),
+                                                       'HH24:MI:SS') between
+                                               to_date('09:30:00', 'HH24:MI:SS') and
+                                               to_date('17:00:00', 'HH24:MI:SS') and
+                                               f.inserted_on between
+                                               l.inserted_on + interval '30'
+                                           minute and l.inserted_on + interval '1' hour then
+                                           2
+                                          when to_date(to_char(l.inserted_on,
+                                                               'HH24:MI:SS'),
+                                                       'HH24:MI:SS') >=
+                                               to_date('17:00:00', 'HH24:MI:SS') and
+                                               f.inserted_on between
+                                               to_date(trunc(l.inserted_on) + 1 ||
+                                                       '10:00:00',
+                                                       'dd-mm-yy hh24:mi:ss') and
+                                               to_date(trunc(l.inserted_on) + 1 ||
+                                                       '10:30:00',
+                                                       'dd-mm-yy hh24:mi:ss') then
+                                           2
+                                          else
+                                           case
+                                             when to_date(to_char(l.inserted_on,
+                                                                  'HH24:MI:SS'),
+                                                          'HH24:MI:SS') <=
+                                                  to_date('09:30:00', 'HH24:MI:SS') and
+                                                  f.inserted_on between
+                                                  to_date(trunc(l.inserted_on) ||
+                                                          '10:30:00',
+                                                          'dd-mm-yy hh24:mi:ss') and
+                                                  to_date(trunc(l.inserted_on) ||
+                                                          '11:30:00',
+                                                          'dd-mm-yy hh24:mi:ss') then
+                                              3
+                                             when to_date(to_char(l.inserted_on,
+                                                                  'HH24:MI:SS'),
+                                                          'HH24:MI:SS') between
+                                                  to_date('09:30:00', 'HH24:MI:SS') and
+                                                  to_date('17:00:00', 'HH24:MI:SS') and
+                                                  f.inserted_on between
+                                                  l.inserted_on + interval '1'
+                                              hour and l.inserted_on + interval '2' hour then
+                                              3
+                                             when to_date(to_char(l.inserted_on,
+                                                                  'HH24:MI:SS'),
+                                                          'HH24:MI:SS') >=
+                                                  to_date('17:00:00', 'HH24:MI:SS') and
+                                                  f.inserted_on between
+                                                  to_date(trunc(l.inserted_on) + 1 ||
+                                                          '10:30:00',
+                                                          'dd-mm-yy hh24:mi:ss') and
+                                                  to_date(trunc(l.inserted_on) + 1 ||
+                                                          '11:30:00',
+                                                          'dd-mm-yy hh24:mi:ss') then
+                                              3
+                                             else
+                                              case
+                                                when to_date(to_char(l.inserted_on,
+                                                                     'HH24:MI:SS'),
+                                                             'HH24:MI:SS') <=
+                                                     to_date('09:30:00', 'HH24:MI:SS') and
+                                                     f.inserted_on between
+                                                     to_date(trunc(l.inserted_on) ||
+                                                             '11:30:00',
+                                                             'dd-mm-yy hh24:mi:ss') and
+                                                     to_date(trunc(l.inserted_on) ||
+                                                             '13:30:00',
+                                                             'dd-mm-yy hh24:mi:ss') then
+                                                 4
+                                                when to_date(to_char(l.inserted_on,
+                                                                     'HH24:MI:SS'),
+                                                             'HH24:MI:SS') between
+                                                     to_date('09:30:00', 'HH24:MI:SS') and
+                                                     to_date('17:00:00', 'HH24:MI:SS') and
+                                                     f.inserted_on between
+                                                     l.inserted_on + interval '2'
+                                                 hour and l.inserted_on + interval '4' hour then
+                                                 4
+                                                when to_date(to_char(l.inserted_on,
+                                                                     'HH24:MI:SS'),
+                                                             'HH24:MI:SS') >=
+                                                     to_date('17:00:00', 'HH24:MI:SS') and
+                                                     f.inserted_on between
+                                                     to_date(trunc(l.inserted_on) + 1 ||
+                                                             '11:30:00',
+                                                             'dd-mm-yy hh24:mi:ss') and
+                                                     to_date(trunc(l.inserted_on) + 1 ||
+                                                             '13:30:00',
+                                                             'dd-mm-yy hh24:mi:ss') then
+                                                 4
+                                                else
+                                                 case
+                                                   when to_date(to_char(l.inserted_on,
+                                                                        'HH24:MI:SS'),
+                                                                'HH24:MI:SS') <=
+                                                        to_date('09:30:00', 'HH24:MI:SS') and
+                                                        f.inserted_on >=
+                                                        to_date(trunc(l.inserted_on) ||
+                                                                '13:30:00',
+                                                                'dd-mm-yy hh24:mi:ss') then
+                                                    5
+                                                   when to_date(to_char(l.inserted_on,
+                                                                        'HH24:MI:SS'),
+                                                                'HH24:MI:SS') between
+                                                        to_date('09:30:00', 'HH24:MI:SS') and
+                                                        to_date('17:00:00', 'HH24:MI:SS') and
+                                                        f.inserted_on >=
+                                                        l.inserted_on + interval '4' hour then
+                                                    5
+                                                   when to_date(to_char(l.inserted_on,
+                                                                        'HH24:MI:SS'),
+                                                                'HH24:MI:SS') >=
+                                                        to_date('17:00:00', 'HH24:MI:SS') and
+                                                        f.inserted_on >=
+                                                        to_date(trunc(l.inserted_on) + 1 ||
+                                                                '13:30:00',
+                                                                'dd-mm-yy hh24:mi:ss') then
+                                                    5
+                                                 end
+                                              end
+                                           end
+                                        end
+                                     end
+                                  end AS AGE_WISE_CATEGORY
+                    from mana0809.tbl_fzm_master          z,
+                         mana0809.branch_dtl_new          b,
+                         mana0809.tbl_leadsource_category c,
+                         mana0809.tbl_lead_mst            l
+                    left join (SELECT v.mobile as mobile,
+                                     MIN(v.inserted_on) as inserted_on
+                                FROM mana0809.tbl_lead_followup v
+                               GROUP BY mobile) f
+                      on l.mobile_no = f.mobile
+                   where b.BRANCH_ID = l.branch_id
+                     and z.region_id = b.reg_id
+                     and c.leadsource_id = l.lead_source_cat
+                     and to_date(l.inserted_on)=to_date(sysdate)-1 ) x
+           where x.AGE_WISE_CATEGORY is not null) y
+    left outer join (select q.mobile,
+                            q.pledge_no,
+                            q.pledge_val,
+                            q.cust_id,
+                            sum(q.act_weight - q.stone_wt) tot_gross_wt,
+                            cc.created_date
+                       from mana0809.tbl_lead_convert q,
+                            mana0809.customer         cc
+                      where to_char(q.mobile) = cc.phone2
+                        and to_date(q.lead_date)=to_date(sysdate)-1
+                      group by q.mobile,
+                               q.pledge_no,
+                               q.pledge_val,
+                               q.cust_id,
+                               cc.created_date) s
+      on (s.mobile = y.mobile_no);
+commit;
+
+update updation_log set out_time=sysdate where module='HotLead';
+  commit;
+
+-------------------------CRF-102010-- Hot Lead Conversion 357276-------------------
+----crf 102411---355646-------------------------------------------------
+insert into updation_log(module,in_time) values('newscheme_call',sysdate);
+  commit;
+
+  --merging for int payed status
+  Merge into tbl_newschm_customers t
+  using (select distinct  s.pledge_no, s.close_dt
+           from pledge_status s, tbl_newschm_customers c
+          where s.pledge_no = c.pledge_no
+            and c.col_tra_dt < s.close_dt) X
+  on (t.pledge_no = X.pledge_no)
+  when matched then
+    update set t.int_pay_status = 1, t.last_tra_dt = x.close_dt where t.call_status=1 and t.int_pay_status=0;
+  commit;
+  ---
+   ---merging for closed status
+ merge into tbl_newschm_customers t
+using (select distinct s.pledge_no from pledge_status s where s.status_id = 0)X
+on (t.pledge_no = X.pledge_no)
+when matched then
+
+  update set t.closed_status = 1;
+  commit;
+
+  --insert into his--
+  insert into TBL_NEWSCHM_CUSTOMERS_his   select t.*,trunc(sysdate)
+            from tbl_newschm_customers t
+           where t.call_status = 0
+             and t.int_pay_status = 0;
+             commit;
+  ----------------------delete from table----
+  delete from tbl_newschm_customers t where t.call_status=0 and t.int_pay_status=0;
+  commit;
+  ------
+insert into tbl_newschm_customers
+  (branch_id,
+   cust_id,
+   col_tra_dt,
+   call_status,
+   pledge_no,
+   call_count,
+   int_pay_status,
+   closed_status)
+  select  /*+Parallel(10)*/ p.branch_id, P.CUST_ID, sysdate, 0, p.pledge_no, 0, 0, 0
+    from pledge_master p, pledge_status s
+   where p.pledge_no = s.pledge_no
+
+     and s.status_id <> 0
+     and p.scheme_nm in
+         ('SX++', 'MMA-1', 'MMA-2', 'MMA-3', 'MA1', 'MA2', 'MA3', 'SX+')
+     and trunc(sysdate) - trunc(s.close_dt) > 30
+     and not exists (select t.cust_id
+            from tbl_newschm_customers t
+           where p.pledge_no = t.pledge_no
+             and ((t.int_pay_status = 1 and
+                 (trunc(sysdate) - trunc(t.last_tra_dt) < 30)) or
+                 ((trunc(sysdate) - trunc(t.col_tra_date) <= 2) and
+                 t.call_status in (1, 2))));
+
+              commit;
+        ----------new change for mahesh mani--02-07-22---------
+       /* insert into TBL_NEWSCHM_CUSTOMERS(BRANCH_ID,
+                                  CUST_ID,
+                                  COL_TRA_DT,
+                                  CALL_STATUS,
+
+
+                                  PLEDGE_NO,
+                                  CALL_COUNT,
+
+                                  INT_PAY_STATUS,
+                                  CLOSED_STATUS
+                                 )
+select t.branch_id, t.cust_id, sysdate, 0, t.pledge_no, 0, 0, 0
+  from TBL_NEWCUSTOMER_CALL t
+
+ where not exists (select s.pledge_no
+          from mana0809.TBL_NEWSCHM_CUSTOMERS s
+         where t.pledge_no = s.pledge_no);
+     -------------end---------------------------------
+  update updation_log set out_time=sysdate where module='newscheme_call';
+  commit;*/
+----end---
+
+-----106797---------------
+ insert into updation_log(module,in_time) values('newcustomer_RPT',sysdate);
+  commit;
+insert into TBL_NEWCUSTOMER_RPT(BR_ID,
+                                CUST_ID,
+                                PLEDGE_VAL,
+                                INVENTORY_ID,
+                                INVENTRY_DATE,
+                                PLEDGE_NO,
+                                CLOSE_DT,
+
+                                PROCESS_DATE,REASON)
+select p.branch_id,
+       t.cust_id,
+       p.pledge_val,
+       m.inv_id,
+       m.tra_dt,
+       p.pledge_no,
+       m.close_dt,
+       sysdate,
+       s.description
+
+  from mana0809.CUSTOMER_DETAIL t, mana0809.pledge_master p
+  left outer join mana0809.tbl_gl_rele_reason g
+    on (p.pledge_no = g.pledge_no)
+  left join mana0809.STATUS_MASTER s
+    on (s.status_id = g.rel_reason and s.module_id = 913 and
+       s.option_id = 1), mana0809.TBL_GLN_INVENTORY_MASTER m
+ where t.cust_id = p.cust_id
+   and m.plgno = p.pledge_no
+   and to_date(t.reg_date) = to_date(sysdate - 1);
+ update updation_log set out_time=sysdate where module='newcustomer_RPT';
+  commit;
+ ----end------
+  --------Ramya--------------
+
+
+  /* insert into updation_log(module,in_time) values('crm_convesn',sysdate);
+  commit;
+  proc_crm_conversion;
+
+
+  update updation_log set out_time=sysdate where module='crm_convesn';
+  commit;*/
+
+
+  /* insert into updation_log(module,in_time) values('takeover_data',sysdate);
+  commit;
+  proc_takeover_data;
+  update updation_log set out_time=sysdate where module='takeover_data';
+  commit;
+*/
+   insert into updation_log(module,in_time) values('new_cust_settlmnt',sysdate);
+  commit;
+  proc_new_cust_settelement;
+  update updation_log set out_time=sysdate where module='new_cust_settlmnt';
+  commit;
+
+
+    insert into updation_log(module,in_time) values('lost_cust_crc',sysdate);
+  commit;
+  proc_lost_cust_crc;
+  update updation_log set out_time=sysdate where module='lost_cust_crc';
+  commit;
+
+   insert into updation_log(module,in_time) values('redemption_crc',sysdate);
+  commit;
+  proc_redemption_crc;
+  update updation_log set out_time=sysdate where module='redemption_crc';
+  commit;
+  ---------SMA CLASSIFICATION--------------
+/*insert into updation_log(module,in_time) values('SMA_CLASSIFICATION',sysdate);
+  commit;
+  proc_sma_classification;
+  update updation_log set out_time=sysdate where module='SMA_CLASSIFICATION';
+  commit;*/
+  ------------end-----------
+   ---------dilson--------------
+/*insert into updation_log(module,in_time) values('NCA_RPT',sysdate);
+  commit;
+  proc_nca_rpt;
+  update updation_log set out_time=sysdate where module='NCA_RPT';
+  commit;*/
+  ------------ dilson end-----------
+insert into updation_log(module,in_time) values('proc_ogl_verification_alert',sysdate);
+  commit;
+  proc_ogl_verification_alert;
+  update updation_log set out_time=sysdate where module='proc_ogl_verification_alert';
+  commit;
+ ----------355646----------executive sales dash board---
+insert into updation_log(module,in_time) values('proc_sales_executive_inc_scheduler',sysdate);
+  commit;
+proc_sales_executive_inc_scheduler;
+ update updation_log set out_time=sysdate where module='proc_sales_executive_inc_scheduler';
+  commit;
+insert into updation_log(module,in_time) values('proc_sales_executive_dashborad',sysdate);
+  commit;
+  proc_sales_executive_dash;
+ update updation_log set out_time=sysdate where module='proc_sales_executive_dashborad';
+  commit;
+----------end--------------------
+
+
+--------------------109096---------------------
+
+  select count(t.update_time) into cnt from tbl_ltv_img t
+where trunc(t.update_time)=trunc(sysdate);
+if (cnt=0) then
+   insert into mana0809.tbl_punch_block
+  (emp_code, status, block_dt, module_id, block_reason)
+  values
+  (68151, 1, sysdate,705,'YOU HAVE PUNCHING BLOCK..PLEASE UPDATE LTV IMAGE');
+ commit;
+
+else
+       update mana0809.tbl_punch_block t set t.status=0 where t.module_id=705 and to_date(t.block_dt)=to_date(sysdate);
+
+   end if;
+   commit;
+
+------------------------112498/113489 exit block-----------
+
+--------payment------------------------
+
+insert into tbl_punch_block
+(emp_code, status, block_dt, module_id, block_reason, position_id,branch_id)
+select distinct e.emp_code,
+1,
+sysdate,
+3026,
+'Release payment immediately',
+e.post_id,
+e.branch_id
+from tbl_marketing_activity_new m, TBL_PO_MASTER p, employee_master e
+where m.actvty_id = p.act_id
+and m.brid = e.branch_id
+and e.post_id in (10)
+and e.status_id = 1
+and m.brid = p.branch_id
+and e.branch_id = p.branch_id
+and P.STATUS_ID not in (2, 6, 15, 16)
+and  exists (select *
+          from mana0809.tbl_mark_act_issuedpo t
+         where t.po_id = p.po_id
+           and t.date_changed_count = 7)
+           and not exists(select distinct v.po_id from mana0809.TBL_PO_INVOICE_MST v where v.po_id=p.po_id
+           and v.status_id = 1);
+           commit;
+           
+
+
+--------updation----------------------------------
+
+
+insert into tbl_punch_block
+(emp_code, status, block_dt, module_id, block_reason, position_id,branch_id)
+select distinct e.emp_code,
+1,
+sysdate,
+808,
+'UPDATED THE PO STATUS',
+e.post_id,
+e.branch_id
+from tbl_marketing_activity_new m, TBL_PO_MASTER p, employee_master e
+where m.actvty_id = p.act_id
+and m.brid = e.branch_id
+and e.post_id in (10, 1)
+and e.status_id = 1
+and m.brid = p.branch_id
+and e.branch_id = p.branch_id
+and P.STATUS_ID not in (2, 6, 15, 16)
+and not exists(select t.po_id
+          from mana0809.tbl_mark_act_issuedpo t
+         where t.po_id = p.po_id
+           and t.date_changed_count = 7)
+           and not exists(select distinct v.po_id from mana0809.TBL_PO_INVOICE_MST v where v.po_id=p.po_id
+           and v.status_id = 1);
+
+commit;
+
+-------------------------end-------------------------
+
+
+
+ ------------------lead_cnvrt_cst table for yesterday pledged customer details(same process also in proc_lms_lead_convert)
+ select count(*) into V_count_N from lead_cnvrt_cst t where t.process_dt=trunc(sysdate)-1;
+
+ if V_count_N=0 then
+ execute immediate 'truncate table lead_cnvrt_cst';
+
+ insert into updation_log(module,in_time) values('log1',sysdate);
+  commit;
+
+ insert into LEAD_CNVRT_CST  (CUST_ID,MOB,PROCESS_DT,QUOT_DT)
+ select t.cust_id,substr(b.phone2,-10),to_date(sysdate)-1,min(t.quot_dt) from MANA0809.PLEDGE_QUOT t,mana0809.customer b
+ where trunc(t.quot_dt)=trunc(sysdate)-1
+ and t.pledge_no is not null and b.cust_id=t.cust_id and substr(t.pledge_no,9,1)<>3
+  group by t.cust_id,b.phone2,to_date(sysdate)-1 ;
+
+  update updation_log set out_time=sysdate where module='log1';
+  commit;
+
+ merge into LEAD_CNVRT_CST t   using MANA0809.PLEDGE_QUOT b  on(t.cust_id=b.cust_id and t.quot_dt=b.quot_dt)
+  when matched then update set t.inv_id=b.inventory_id,t.pledge_no=b.pledge_no,t.net_wt=b.act_weight-b.stone_weight,t.pledge_value=b.pledge_val,t.branch_id=b.branch_id where substr(b.pledge_no,9,1)<>3;
+
+  merge into LEAD_CNVRT_CST t using MANA0809.customer_detail  b on(t.cust_id=b.cust_id) when matched then update set
+  t.reg_dt=b.reg_date;
+ end if;
+
+
+
+/*  insert into TBL_TWOWAY_CONVERSION
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           t.cust_id, min(m.inv_id) inv_id
+            from MANA0809.TBL_RELEASE_CUST_SURVEY  t,
+                 mana0809.tbl_gln_inventory_master m
+           where t.cl_satus > = 1
+             and t.cust_id = m.cust_id and t.cl_satus>0
+             and to_date(m.tra_dt) >= to_date(t.send_dt) group by t.cust_id )
+     and not exists (select c.cust_id
+            from TBL_TWOWAY_CONVERSION c
+           where g.cust_id = c.cust_id);*/
+
+  insert into updation_log(module,in_time) values('log2',sysdate);
+  commit;
+
+
+ insert into TBL_TWOWAY_CONVERSION(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+select p.cust_id, p.inv_id, p.net_wt, to_date(p.quot_dt), 2
+  from MANA0809.TBL_RELEASE_CUST_SURVEY t, MANA0809.lead_cnvrt_cst p
+ where t.cust_id = p.cust_id and  t.cl_satus > = 1
+   and t.cl_satus > 0
+   and to_date(p.quot_dt) >= to_date(t.send_dt)
+   and not exists (select c.cust_id
+          from TBL_TWOWAY_CONVERSION c
+         where p.cust_id = c.cust_id);
+
+          update updation_log set out_time=sysdate where module='log2';
+
+commit;
+/*insert into TBL_TWOWAY_CONVERSION
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10)
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_RELEASE_CUST_SURVEY_click s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phno = substr(c.phone2, -10)
+                     and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.send_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_TWOWAY_CONVERSION w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+ */
+  insert into updation_log(module,in_time) values('log3',sysdate);
+  commit;
+
+ insert into TBL_TWOWAY_CONVERSION(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+  select p.cust_id, p.inv_id, p.net_wt, to_date(p.quot_dt), 1 from mana0809.TBL_RELEASE_CUST_SURVEY_click t , MANA0809.lead_cnvrt_cst p where
+         t.phno=p.mob and p.reg_dt> to_date(t.send_dt) and p.reg_dt=to_date(sysdate)-1  and not exists (select w.cust_id
+            from TBL_TWOWAY_CONVERSION w
+           where p.cust_id = w.cust_id);
+
+           update updation_log set out_time=sysdate where module='log3';
+ commit;
+ /*insert into TBL_TWOWAY_CONVERSION
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_RELEASE_CUST_SURVEY s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phno = substr(c.phone2, -10)
+                     and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.send_dt) and s.cl_satus>0  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_TWOWAY_CONVERSION w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;*/
+  insert into updation_log(module,in_time) values('log4',sysdate);
+  commit;
+
+     insert into TBL_TWOWAY_CONVERSION(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+select p.cust_id, p.inv_id, p.net_wt, to_date(p.quot_dt), 1 from  MANA0809.TBL_RELEASE_CUST_SURVEY t,MANA0809.lead_cnvrt_cst p
+where t.phno=p.mob and t.cl_satus>0 and p.reg_dt>to_date(t.send_dt) and p.reg_dt=to_date(sysdate)-1
+ and not exists (select w.cust_id
+            from TBL_TWOWAY_CONVERSION w
+           where p.cust_id = w.cust_id);
+           commit;
+update updation_log set out_time=sysdate where module='log4';
+  commit;
+/* insert into TBL_PVSURVEY_CONVERSION
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_PERSONAL_VISIT s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone_no = substr(c.phone2, -10)
+                   and s.clicked_count > 0
+                     and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.snd_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_PVSURVEY_CONVERSION w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;*/
+
+  insert into updation_log(module,in_time) values('log5',sysdate);
+  commit;
+
+ insert into TBL_PVSURVEY_CONVERSION(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+    select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 1 from mana0809.TBL_PERSONAL_VISIT t,MANA0809.lead_cnvrt_cst p
+           where t.phone_no=p.mob and p.reg_dt=to_date(sysdate)-1 and t.clicked_count>0  and p.reg_dt > to_date(t.snd_dt)
+             and not exists (select w.cust_id
+            from TBL_PVSURVEY_CONVERSION w
+           where p.cust_id = w.cust_id);
+           commit;
+
+           update updation_log set out_time=sysdate where module='log5';
+  commit;
+
+/* insert into TBL_PVSURVEY_CONVERSION
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10)
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_PV_CUST_SURVEY s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone_no = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_PVSURVEY_CONVERSION w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+           commit;*/
+            insert into updation_log(module,in_time) values('log6',sysdate);
+  commit;
+
+   insert into TBL_PVSURVEY_CONVERSION(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+           select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 2 from   mana0809.TBL_PV_CUST_SURVEY t ,MANA0809.lead_cnvrt_cst p
+            where t.phone_no = p.mob and p.reg_dt>to_date(t.tra_dt) and p.reg_dt=to_date(sysdate)-1
+             and not exists (select w.cust_id
+            from TBL_PVSURVEY_CONVERSION w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+            update updation_log set out_time=sysdate where module='log6';
+  commit;
+
+          /* insert into TBL_DSSURVEY_CONVERSION(CUST_ID,
+                                               INV_ID,
+                                               GROSS_WT,
+                                               CONV_DT,
+                                               CUST_STATUS
+                                               )
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.DOORSTEP_WEB_LEAD s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where to_char(s.mobile_no) = substr(c.phone2, -10)
+                  -- and s.clicked_count > 0
+                     and c.cust_id = d.cust_id
+                     and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id)
+                     and to_date(m.tra_dt)=to_date(sysdate)-1
+                     group by m.cust_id)
+    and not exists (select w.cust_id
+            from TBL_DSSURVEY_CONVERSION w
+           where g.cust_id = w.cust_id)
+           and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;*/
+  insert into updation_log(module,in_time) values('log7',sysdate);
+  commit;
+
+insert into TBL_DSSURVEY_CONVERSION(CUST_ID,
+                                     INV_ID,
+                                     GROSS_WT,
+                                     CONV_DT,
+                                     CUST_STATUS
+                                    )
+           select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 2 from   mana0809.DOORSTEP_WEB_LEAD t ,MANA0809.lead_cnvrt_cst p
+            where to_char(t.mobile_no) = p.mob and p.reg_dt>to_date(t.tra_dt) and p.reg_dt=to_date(sysdate)-1
+             and not exists (select w.cust_id
+            from TBL_DSSURVEY_CONVERSION w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+           update updation_log set out_time=sysdate where module='log7';
+  commit;
+
+/* insert into TBL_DSSURVEY_CONVERSION(CUST_ID,
+                                     INV_ID,
+                                     GROSS_WT,
+                                     CONV_DT,
+                                     CUST_STATUS
+                                    )
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.DOORSTEP_POTENCIAL_CUST s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where to_char(s.mobile_no) = substr(c.phone2, -10)
+                  -- and s.clicked_count > 0
+                     and c.cust_id = d.cust_id
+                     and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id)
+                     and to_date(m.tra_dt)=to_date(sysdate)-1
+                     group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_DSSURVEY_CONVERSION w
+           where g.cust_id = w.cust_id)
+           and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;
+*/
+
+ insert into updation_log(module,in_time) values('log8',sysdate);
+  commit;
+
+   insert into TBL_DSSURVEY_CONVERSION(CUST_ID,
+                                     INV_ID,
+                                     GROSS_WT,
+                                     CONV_DT,
+                                     CUST_STATUS
+                                    )
+           select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 1 from   mana0809.DOORSTEP_POTENCIAL_CUST t ,MANA0809.lead_cnvrt_cst p
+            where to_char(t.mobile_no) = p.mob and p.reg_dt>to_date(t.tra_dt) and p.reg_dt=to_date(sysdate)-1
+             and not exists (select w.cust_id
+            from TBL_DSSURVEY_CONVERSION w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+            update updation_log set out_time=sysdate where module='log8';
+  commit;
+
+/* merge into TBL_DSSURVEY_CONVERSION p using ( select c.cust_id,s.slno sl_no
+                    from mana0809.DOORSTEP_POTENCIAL_CUST s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d,TBL_DSSURVEY_CONVERSION m
+                   where to_char(s.mobile_no) = substr(c.phone2, -10)
+                  -- and s.clicked_count > 0
+                     and c.cust_id = d.cust_id
+                     and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) x on( p.cust_id=x.cust_id)  when matched then update set p.slno=x.sl_no;
+
+                     commit;*/
+                      merge into TBL_DSSURVEY_CONVERSION p using (select c.cust_id,s.slno sl_no
+                    from mana0809.DOORSTEP_POTENCIAL_CUST s,MANA0809.lead_cnvrt_cst c,TBL_DSSURVEY_CONVERSION m
+                   where to_char(s.mobile_no) = c.mob
+                  -- and s.clicked_count > 0
+                     and c.reg_dt=to_date(sysdate)-1
+                     and c.reg_dt > to_date(s.tra_dt)  and c.cust_id=m.cust_id) x on( p.cust_id=x.cust_id)  when matched then update set p.slno=x.sl_no;
+
+                     commit;
+
+ /*                    insert into TBL_NONGLD_SURVEY_CNVRSN
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.NG_LOAN_CUSTOMERS s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone_no = substr(c.phone2, -10)
+                   and s.clicked_count > 0
+                     and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.snd_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_NONGLD_SURVEY_CNVRSN w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;
+ */
+  insert into updation_log(module,in_time) values('log9',sysdate);
+  commit;
+
+     insert into TBL_NONGLD_SURVEY_CNVRSN(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+           select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 1 from   mana0809.NG_LOAN_CUSTOMERS t ,MANA0809.lead_cnvrt_cst p
+            where t.phone_no = p.mob and t.clicked_count > 0 and p.reg_dt>to_date(t.snd_dt) and p.reg_dt=to_date(sysdate)-1
+             and not exists (select w.cust_id
+            from TBL_NONGLD_SURVEY_CNVRSN w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+            update updation_log set out_time=sysdate where module='log9';
+  commit;
+
+  /*insert into TBL_NONGLD_SURVEY_CNVRSN
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.ng_loan_custsurvey s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone_no = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_NONGLD_SURVEY_CNVRSN w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+           commit;*/
+            insert into updation_log(module,in_time) values('log10',sysdate);
+  commit;
+
+               insert into TBL_NONGLD_SURVEY_CNVRSN(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+           select p.cust_id, p.inv_id,p.net_wt, to_date(p.quot_dt), 2 from   mana0809.ng_loan_custsurvey t ,MANA0809.lead_cnvrt_cst p
+            where t.phone_no =p.mob and p.reg_dt>to_date(t.tra_dt) and p.reg_dt=to_date(sysdate)-1
+             and not exists (select w.cust_id
+            from TBL_NONGLD_SURVEY_CNVRSN w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+            update updation_log set out_time=sysdate where module='log10';
+  commit;
+           --Social Media Conversion Report New Customer
+/*insert into tbl_sclmedia_newcus_cnvrsnrpt
+select
+distinct t.mobile_number,
+         to_char(t.lead_date) lead_date,
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         c.cust_id,
+         c.reg_date,
+         f.fzm,
+         sum(r.tot_gross_wt) TOT_GROSS_WT,
+         r.plgno,
+         p.pledge_val
+
+  from mana0809.customer_detail          c,
+       mana0809.customer                 m,
+       MANA0809.TBL_SOCIALMEDIA_LEAD     t,
+       mana0809.tbl_gln_inventory_master r,
+       mana0809.branch_dtl_new           b,
+       mana0809.pledge_master p,
+       mana0809.tbl_fzm_master f
+ where to_char(t.mobile_number) = substr(m.phone2, -10)
+   and c.reg_date >= t.lead_date
+   and c.reg_date=to_date(sysdate)-1
+   and m.cust_id = c.cust_id
+   and m.branch_id = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and c.cust_id = r.cust_id
+   and r.plgno = p.pledge_no
+ group by t.mobile_number,
+          t.lead_date,
+          c.cust_id,
+          c.reg_date,
+          t.lead_name,
+          t.lead_date,
+          b.BRANCH_ID,
+          b.BRANCH_NAME,
+          b.reg_name,
+          b.area_name,
+          f.fzm,
+          r.plgno,
+          p.pledge_val;
+                 commit;*/
+
+  insert into updation_log(module,in_time) values('log11',sysdate);
+  commit;
+
+
+                   insert into tbl_sclmedia_newcus_cnvrsnrpt(mobile_number, lead_date, lead_name, branch_id, branch_name, reg_name, area_name, cust_id, reg_date, fzm, tot_gross_wt, pledge_number, amount)
+       select t.mobile_number,
+         to_char(t.lead_date) lead_date,
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         p.cust_id,
+         p.reg_dt,
+         f.fzm,
+         sum(p.net_wt) TOT_GROSS_WT,
+         p.pledge_no,
+         p.pledge_value from  MANA0809.TBL_SOCIALMEDIA_LEAD     t,
+       mana0809.branch_dtl_new           b,
+      MANA0809.lead_cnvrt_cst p,
+       mana0809.tbl_fzm_master f
+            where to_char(t.mobile_number) = p.mob
+   and p.reg_dt >= t.lead_date
+   and p.reg_dt=to_date(sysdate)-1
+   and p.branch_id= b.BRANCH_ID
+   and b.reg_id = f.region_id
+   group by t.mobile_number,
+         to_char(t.lead_date),
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         p.cust_id,
+         p.reg_dt,
+         f.fzm, p.pledge_no,
+         p.pledge_value;
+         commit;
+
+          update updation_log set out_time=sysdate where module='log11';
+  commit;
+--Social Media Conversion Report Existing Customer
+/*insert into tbl_sclmdia_xcus_cnvrsnrpt(mobile_number,
+                                       lead_date,
+                                       lead_name,
+                                       branch_id,
+                                       branch_name,
+                                       reg_name,
+                                       area_name,
+                                       cust_id,
+                                       reg_date,
+                                       tot_gross_wt,
+                                       fzm,
+                                       pledge_number,
+                                       amount,
+                                       tra_date
+                                       )
+select
+distinct t.mobile_number,
+         to_char(t.lead_date) lead_date,
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         c.cust_id,
+         c.reg_date,
+        sum(r.tot_gross_wt) TOT_GROSS_WT,
+         f.fzm,
+         r.plgno,
+         p.pledge_val, to_char(min(r.tra_dt)) tra_dt
+  from mana0809.customer_detail          c,
+       mana0809.customer                 m,
+       MANA0809.TBL_SOCIALMEDIA_LEAD     t,
+       mana0809.tbl_gln_inventory_master r,
+       mana0809.branch_dtl_new           b,
+        mana0809.pledge_master p,
+       mana0809.tbl_fzm_master f
+ where to_char(t.mobile_number) = substr(m.phone2, -10)
+   and c.reg_date < t.lead_date
+
+   and m.cust_id = c.cust_id
+   and m.branch_id = b.BRANCH_ID
+     and b.reg_id = f.region_id
+   and c.cust_id = r.cust_id
+   and to_date(r.tra_dt) >= t.lead_date
+    and to_date(r.tra_dt) = to_date(sysdate-1)
+    and r.plgno = p.pledge_no
+ group by t.mobile_number,
+          t.lead_date,
+          c.cust_id,
+          t.lead_name,
+          t.lead_date,
+          b.BRANCH_ID,
+          b.BRANCH_NAME,
+          b.reg_name,
+          b.area_name,
+          c.reg_date,
+          f.fzm,
+          r.plgno,
+          p.pledge_val;
+          commit;*/
+          insert into updation_log(module,in_time) values('log12',sysdate);
+  commit;
+
+insert into tbl_sclmdia_xcus_cnvrsnrpt(mobile_number,
+                                       lead_date,
+                                       lead_name,
+                                       branch_id,
+                                       branch_name,
+                                       reg_name,
+                                       area_name,
+                                       cust_id,
+                                       reg_date,
+                                       tot_gross_wt,
+                                       fzm,
+                                       pledge_number,
+                                       amount,
+                                       tra_date
+                                       )       select t.mobile_number,
+         to_char(t.lead_date) lead_date,
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         p.cust_id,
+         p.reg_dt,
+         sum(p.net_wt) TOT_GROSS_WT,
+         f.fzm,
+         p.pledge_no,
+         p.pledge_value,to_char(p.quot_dt) from  MANA0809.TBL_SOCIALMEDIA_LEAD     t,
+       mana0809.branch_dtl_new           b,
+      MANA0809.lead_cnvrt_cst p,
+       mana0809.tbl_fzm_master f
+            where to_char(t.mobile_number) =p.mob
+   and p.reg_dt < t.lead_date
+  and p.branch_id= b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and to_date(p.quot_dt) >= t.lead_date
+    and to_date(p.quot_dt) = to_date(sysdate-1)
+   group by t.mobile_number,
+         to_char(t.lead_date),
+         t.lead_name,
+         b.BRANCH_ID,
+         b.BRANCH_NAME,
+         b.reg_name,
+         b.area_name,
+         p.cust_id,
+         p.reg_dt,
+         f.fzm, p.pledge_no,
+         p.pledge_value,to_char(p.quot_dt);
+         commit;
+
+         update updation_log set out_time=sysdate where module='log12';
+  commit;
+
+update mana0809.tbl_online_gl_cust_mst t set t.rebate_dt =to_date(t.confirm_dt)
+where t.rebate_status=1 and t.rebate_dt is null and t.status_id = 1;
+
+
+merge into tbl_sclmdia_xcus_cnvrsnrpt x using (select y.cust_id ,max(s.close_dt) ldt from pledge_status s,pledge_master t,tbl_sclmdia_xcus_cnvrsnrpt y where s.pledge_no=t.pledge_no and y.cust_id=t.cust_id and y.last_tra_dt is  null group by y.cust_id) Z on (x.cust_id=z.cust_id) when matched then update set x.last_tra_dt=z.ldt;
+    commit;
+    execute immediate 'truncate table TBL_LOST_CALL_COUNT';
+
+    insert into updation_log(module,in_time) values('log13',sysdate);
+  commit;
+
+    insert into TBL_LOST_CALL_COUNT select t.inform_branch,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as interested_infuture,
+       sum(case
+             when t.cus_promise = 6 then
+              1
+             else
+              0
+           end) as Loan_not_required,
+       sum(case
+             when t.cus_promise = 4 then
+              1
+             else
+              0
+           end) as notinterested_interest_issue,
+       sum(case
+             when t.cus_promise = 3 then
+              1
+             else
+              0
+           end) as notinterested_ltv_issue,
+       sum(case
+             when t.cus_promise = 5 then
+              1
+             else
+              0
+           end) as notinterested_auctionissue,
+       sum(case
+             when t.call_ntattnd_reason = 2 then
+              1
+             else
+              0
+           end) as notreachable,
+       sum(case
+             when t.call_ntattnd_reason = 3 then
+              1
+             else
+              0
+           end) as outofservice,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as readytopledge,
+       sum(case
+             when t.call_ntattnd_reason = 1 then
+              1
+             else
+              0
+           end) as Switchedoff,
+       sum(case
+             when t.call_ntattnd_reason = 4 then
+              1
+             else
+              0
+           end) as Wrongcustomer,t.module_status
+  from CUS_CALLDTL_MST t, branch_dtl_new b, tbl_fzm_master f
+ where t.inform_branch = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and t.module_status=2
+ group by t.inform_branch,t.module_status;
+commit;
+
+update updation_log set out_time=sysdate where module='log13';
+  commit;
+
+
+ insert into updation_log(module,in_time) values('log14',sysdate);
+  commit;
+
+     insert into TBL_LOST_CALL_COUNT select t.inform_branch,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as interested_infuture,
+       sum(case
+             when t.cus_promise = 6 then
+              1
+             else
+              0
+           end) as Loan_not_required,
+       sum(case
+             when t.cus_promise = 4 then
+              1
+             else
+              0
+           end) as notinterested_interest_issue,
+       sum(case
+             when t.cus_promise = 3 then
+              1
+             else
+              0
+           end) as notinterested_ltv_issue,
+       sum(case
+             when t.cus_promise = 5 then
+              1
+             else
+              0
+           end) as notinterested_auctionissue,
+       sum(case
+             when t.call_ntattnd_reason = 2 then
+              1
+             else
+              0
+           end) as notreachable,
+       sum(case
+             when t.call_ntattnd_reason = 3 then
+              1
+             else
+              0
+           end) as outofservice,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as readytopledge,
+       sum(case
+             when t.call_ntattnd_reason = 1 then
+              1
+             else
+              0
+           end) as Switchedoff,
+       sum(case
+             when t.call_ntattnd_reason = 4 then
+              1
+             else
+              0
+           end) as Wrongcustomer,t.module_status
+  from CUS_CALLDTL_MST t, branch_dtl_new b, tbl_fzm_master f
+ where t.inform_branch = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and t.module_status=3
+ group by t.inform_branch,t.module_status;
+commit;
+
+ update updation_log set out_time=sysdate where module='log14';
+  commit;
+
+insert into updation_log(module,in_time) values('log15',sysdate);
+  commit;
+
+insert into TBL_LOST_CALL_COUNT select t.inform_branch,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as interested_infuture,
+       sum(case
+             when t.cus_promise = 6 then
+              1
+             else
+              0
+           end) as Loan_not_required,
+       sum(case
+             when t.cus_promise = 4 then
+              1
+             else
+              0
+           end) as notinterested_interest_issue,
+       sum(case
+             when t.cus_promise = 3 then
+              1
+             else
+              0
+           end) as notinterested_ltv_issue,
+       sum(case
+             when t.cus_promise = 5 then
+              1
+             else
+              0
+           end) as notinterested_auctionissue,
+       sum(case
+             when t.call_ntattnd_reason = 2 then
+              1
+             else
+              0
+           end) as notreachable,
+       sum(case
+             when t.call_ntattnd_reason = 3 then
+              1
+             else
+              0
+           end) as outofservice,
+       sum(case
+             when t.cus_promise = 1 then
+              1
+             else
+              0
+           end) as readytopledge,
+       sum(case
+             when t.call_ntattnd_reason = 1 then
+              1
+             else
+              0
+           end) as Switchedoff,
+       sum(case
+             when t.call_ntattnd_reason = 4 then
+              1
+             else
+              0
+           end) as Wrongcustomer,t.module_status
+  from CUS_CALLDTL_MST t, branch_dtl_new b, tbl_fzm_master f
+ where t.inform_branch = b.BRANCH_ID
+   and b.reg_id = f.region_id
+   and t.module_status=4
+ group by t.inform_branch,t.module_status;
+commit;
+
+update updation_log set out_time=sysdate where module='log15';
+  commit;
+
+execute immediate 'truncate table TBL_DOORSTEP_PLEDGE_MIS';
+
+insert into updation_log(module,in_time) values('log16',sysdate);
+  commit;
+
+insert into TBL_DOORSTEP_PLEDGE_MIS select t.BRANCH_ID,
+       t.BRANCH_NAME,
+       p.tra_dt,
+       k.PLEDGE_NO,
+       k.pledge_val,
+       k.act_weight,
+       k.stone_weight,
+       k.net_weight,
+       k.lnd_rate,
+       k.int_rate,
+       k.scheme_nm,
+       l.inv_id,
+       decode(l.status, '0', 'released', 'live') inv_status,
+       decode(b.status_id, '0', 'settled', 'live') pledge_status,
+       b.close_dt,
+       k.cust_name,
+       case
+         when g.cust_id is null then
+          'NO'
+         else
+          'YES'
+       end as OGL_Status,
+       case
+         when to_date(l.tra_dt) = c.reg_date then
+          'Yes'
+         else
+          'NO'
+       end as new_cust_status,
+       k.act_weight - k.stone_weight Outsanding_pledge_weight,
+       case
+         when to_char(t.BRANCH_ID) = w.station_branchid then
+          'Hub'
+         else
+          'normal'
+       end Branch_status
+  from mana0809.BRANCH_DTL_NEW t left outer join  mana0809.TBL_DOORSTEP_REGION_SPLIT w on (t.BRANCH_ID=w.branch_id), mana0809.pledge_master k
+  left outer join mana0809.tbl_online_gl_cust_mst g
+    on (k.cust_id = g.cust_id and g.status_id = 1), mana0809.pledge_status b,
+ mana0809.TBL_GLN_INVENTORY_MASTER l, mana0809.TBL_GL_DOORSTEP_ENTRY p,
+ mana0809.customer_detail c
+ where t.BRANCH_ID = k.branch_id
+   and k.pledge_no = l.plgno
+   and b.inventory = l.inv_id
+   and b.pledge_no = p.pledge_no
+   and p.status = 1
+   and k.cust_id = c.cust_id;
+   commit;
+
+    update updation_log set out_time=sysdate where module='log16';
+  commit;
+
+/*    insert into TBL_LMS_CUST_SURVEY_CNVRSN
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.tbl_lms_custsms s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                      and s.cust_response=2
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_LMS_CUST_SURVEY_CNVRSN w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+           commit;
+           */
+insert into updation_log(module,in_time) values('log17',sysdate);
+  commit;
+
+                   insert into TBL_LMS_CUST_SURVEY_CNVRSN(CUST_ID, INV_ID, GROSS_WT, CONV_DT, CUST_STATUS)
+  select p.cust_id, p.inv_id, p.net_wt, to_date(p.quot_dt), 2
+from mana0809.tbl_lms_custsms s,MANA0809.lead_cnvrt_cst p
+                   where s.phone = p.mob
+                     and p.reg_dt=to_date(sysdate)-1
+                      and s.cust_response=2
+                     and p.reg_dt > to_date(s.tra_dt)   and to_date(p.quot_dt)=to_date(sysdate)-1
+     and not exists (select w.cust_id
+            from TBL_LMS_CUST_SURVEY_CNVRSN w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;
+
+
+update updation_log set out_time=sysdate where module='log17';
+  commit;
+
+
+/*insert into TBL_SALESMT_CUST_SURVEY_CNVRSN
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), 2,1
+    from mana0809.tbl_gln_inventory_master g
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.tbl_lms_custsms s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                      and s.cust_response=2
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from TBL_SALESMT_CUST_SURVEY_CNVRSN w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+           commit;*/
+
+     /* insert into TBL_SALESMT_CUST_SURVEY_CNVRSN
+  select  p.cust_id, p.inv_id, p.net_wt, to_date(p.quot_dt), 2,1
+from mana0809.tbl_lms_custsms s,MANA0809.lead_cnvrt_cst p
+                   where s.phone = substr(p.mob, -10)
+                     and p.reg_dt=to_date(sysdate)-1
+                      and s.cust_response=2
+                     and p.reg_dt > to_date(s.tra_dt)   and to_date(p.quot_dt)=to_date(sysdate)-1
+     and not exists (select w.cust_id
+            from TBL_SALESMT_CUST_SURVEY_CNVRSN w
+           where p.cust_id = w.cust_id) and to_date(p.quot_dt)=to_date(sysdate)-1;
+           commit;*/
+
+
+    /*       insert into updation_log(module,in_time) values('proc_lostcusto_activate_rnew1',sysdate);
+  commit;
+  proc_lostcusto_activate_rnew1;
+  update updation_log set out_time=sysdate where module='proc_lostcusto_activate_rnew1';
+  commit;*/
+insert into updation_log(module,in_time) values('log18',sysdate);
+  commit;
+
+  update tbl_lead_mst h set h.followup_status=0, h.lead_date=trunc(sysdate),
+  h.next_followup_date=trunc(sysdate) where h.followup_status in(4)
+   and (trunc(sysdate) - trunc(h.lead_date))>90;
+   commit;
+
+update updation_log set out_time=sysdate where module='log18';
+  commit;
+
+
+insert into updation_log(module,in_time) values('log19',sysdate);
+  commit;
+
+  update mana0809.tbl_lead_mst t set t.followup_status=0,t.lead_date=trunc(sysdate),
+   t.next_followup_date=trunc(sysdate) where t.followup_status in(2)
+    and not exists(select * from mana0809.customer p where (to_char(t.phone_no)=p.phone2
+    or to_char(t.mobile_no)=p.phone2))
+     and (trunc(sysdate) - trunc(t.lead_date))>30;
+   commit;
+
+   update updation_log set out_time=sysdate where module='log19';
+  commit;
+
+
+
+ ------------Multi way leads---
+insert /*+ append parallel(6) */ into tbl_multiway_conversion(branch_id, cust_id, phone_no, entered_date, entered_by, reg_dt, status)
+select c.branch_id,c.cust_id,t.phone_no,t.entered_dt,t.entered_by,g.reg_date,0 from customer c,customer_detail g,tbl_multiway_lead t where substr(t.phone_no,-10)=substr(c.phone2,-10)and c.cust_id=g.cust_id and t.cust_id is null and trunc(t.entered_dt)<=trunc(g.reg_date) and trunc(g.reg_date)=trunc(sysdate)-1  and not exists(select * from tbl_multiway_conversion p where p.phone_no=t.phone_no );
+commit;
+merge into  tbl_multiway_conversion x  using (select k.cust_id,k.inventory_id,k.pledge_val,k.act_weight,k.stone_weight from pledge_quot k where k.quot_dt in (select min(t.quot_dt) from pledge_quot t, tbl_multiway_conversion p  where t.cust_id=p.cust_id and p.status=0 and trunc(k.quot_dt)>=trunc(p.entered_date))) y on (x.cust_id=y.cust_id) when matched then update set x.inv_no=y.inventory_id,x.stone_wt=y.stone_weight,x.act_wt=y.act_weight,x.pledge_val=y.pledge_val,x.status=1;
+commit;
+ insert into updation_log(module,in_time) values('log22',sysdate);
+  commit;
+
+         insert into tbl_multiway_conversion(branch_id, cust_id, phone_no, entered_date, entered_by, reg_dt, status,inv_no,act_wt,stone_wt,pledge_val)
+select p.branch_id,
+       p.cust_id,
+       t.phone_no,
+       t.entered_dt,
+       t.entered_by,
+       p.reg_dt,
+       1,p.inv_id,p.net_wt,1,p.pledge_value
+  from MANA0809.lead_cnvrt_cst p, tbl_multiway_lead t
+ where p.mob = t.phone_no
+   and t.cust_id is null
+   and trunc(t.entered_dt) <= trunc(p.reg_dt)
+   and trunc(p.reg_dt) = trunc(sysdate) - 1
+   and not exists (select *
+          from tbl_multiway_conversion q
+         where q.cust_id = p.cust_id);
+         commit;
+
+         update updation_log set out_time=sysdate where module='log22';
+  commit;
+/*insert into   tbl_multiway_conversion (branch_id, cust_id, phone_no, entered_date, entered_by, pledge_dt, inv_no, act_wt, stone_wt, pledge_val, status)
+select k.branch_id,k.cust_id,q.phone_no,q.entered_dt,q.entered_by,k.quot_dt,k.inventory_id,k.act_weight,k.stone_weight,k.pledge_val,2 from pledge_quot k,tbl_multiway_lead q where q.cust_id=k.cust_id and  k.quot_dt in (select min(t.quot_dt) from pledge_quot t, tbl_multiway_lead p  where t.cust_id=p.cust_id and p.cust_id is not null and trunc(t.quot_dt)>=trunc(p.entered_dt)and not exists(select * from tbl_multiway_conversion q where q.cust_id=t.cust_id ));
+commit;
+merge into tbl_multiway_conversion x using customer_detail y on (x.cust_id=y.cust_id) when matched then update set x.reg_dt=y.reg_date  where x.reg_dt is null;
+ commit;*/
+  insert into updation_log(module,in_time) values('log23',sysdate);
+  commit;
+
+         insert into tbl_multiway_conversion(branch_id, cust_id, phone_no, entered_date, entered_by, reg_dt, status,inv_no,act_wt,stone_wt,pledge_val)
+select p.branch_id,
+       p.cust_id,
+       t.phone_no,
+       t.entered_dt,
+       t.entered_by,
+       p.reg_dt,
+       1,p.inv_id,p.net_wt,2,p.pledge_value
+  from MANA0809.lead_cnvrt_cst p, tbl_multiway_lead t
+ where p.mob = t.phone_no
+   and t.cust_id is null
+   and trunc(p.quot_dt) >= trunc(t.entered_dt)
+   and trunc(p.quot_dt) = trunc(sysdate) - 1
+  and not exists (select *
+                    from tbl_multiway_conversion q
+                   where q.cust_id = p.cust_id);
+
+                   update updation_log set out_time=sysdate where module='log23';
+  commit;
+
+ -------------nongoldvertical meeting conversion---------
+ /*insert into tbl_ngmeeting_cnvrsn
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt), y.image_status,y.type_id
+    from mana0809.tbl_gln_inventory_master g,mana0809.TBL_SALESMEET_CUSTFEEDBACK y
+   where (g.cust_id, g.inv_id) in
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_SALESMEET_CUSTFEEDBACK s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone = substr(c.phone2, -10)
+                   and s.count_click > 0
+                     and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from tbl_ngmeeting_cnvrsn w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+ commit;*/
+
+/* insert into tbl_ngmeeting_cnvrsn
+  select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt),y.image_status,y.type_id
+    from mana0809.tbl_gln_inventory_master g,mana0809.TBL_SALESMEETING_CUSTSMS y
+   where (g.cust_id, g.inv_id) i
+         (select /*+ parallel(10) 
+           m.cust_id, min(m.inv_id) inv_id
+            from mana0809.tbl_gln_inventory_master m
+           where exists (select c.cust_id
+                    from mana0809.TBL_SALESMEETING_CUSTSMS s,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where s.phone = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1
+                     and d.reg_date > to_date(s.tra_dt)  and c.cust_id=m.cust_id) and to_date(m.tra_dt)=to_date(sysdate)-1 group by m.cust_id)
+     and not exists (select w.cust_id
+            from tbl_ngmeeting_cnvrsn w
+           where g.cust_id = w.cust_id) and to_date(g.tra_dt)=to_date(sysdate)-1;
+           commit;*/
+      /*     insert into tbl_ngmeeting_cnvrsn(cust_id, inv_id, gross_wt, conv_dt, cust_status, type_id)
+             select g.cust_id, g.inv_id, g.tot_gross_wt, to_date(g.tra_dt),y.image_status,y.type_id
+    from mana0809.tbl_gln_inventory_master g,mana0809.TBL_SALESMEETING_CUSTSMS y,
+                         mana0809.customer                      c,
+                         mana0809.customer_detail               d
+                   where y.phone = substr(c.phone2, -10)
+                      and c.cust_id = d.cust_id and d.reg_date=to_date(sysdate)-1  and g.cust_id=c.cust_id
+                     and d.reg_date > to_date(y.tra_dt) and to_date(g.tra_dt)=to_date(sysdate)-1
+     and not exists (select w.cust_id
+            from tbl_ngmeeting_cnvrsn w
+           where g.cust_id = w.cust_id) ;
+   commit;*/
+    insert into updation_log(module,in_time) values('log24',sysdate);
+  commit;
+
+        insert into tbl_ngmeeting_cnvrsn(cust_id, inv_id, gross_wt, conv_dt, cust_status, type_id)
+             select g.cust_id, g.inv_id, g.net_wt, to_date(g.quot_dt),y.image_status,y.type_id
+    from mana0809.lead_cnvrt_cst g,mana0809.TBL_SALESMEETING_CUSTSMS y
+                   where y.phone = g.mob
+                      and g.reg_dt=to_date(sysdate)-1
+                     and g.reg_dt > to_date(y.tra_dt) and to_date(g.quot_dt)=to_date(sysdate)-1
+     and not exists (select w.cust_id
+            from tbl_ngmeeting_cnvrsn w
+           where g.cust_id = w.cust_id) ;
+   commit;
+   update updation_log set out_time=sysdate where module='log24';
+  commit;
+
+
+  insert into updation_log(module,in_time) values('log25',sysdate);
+  commit;
+
+   insert into tbl_ngmeeting_cnvrsn(cust_id, inv_id, gross_wt, conv_dt, cust_status, type_id)
+             select g.cust_id, g.inv_id, g.net_wt, to_date(g.quot_dt),y.image_status,y.type_id
+    from mana0809.lead_cnvrt_cst g,mana0809.TBL_SALESMEET_CUSTFEEDBACK y
+                   where y.unique_id = g.cust_id
+
+                     and to_date(g.quot_dt)>=to_date(y.snd_dt)
+     and not exists (select w.cust_id
+            from tbl_ngmeeting_cnvrsn w
+           where g.cust_id = w.cust_id) ;
+   commit;
+
+   update updation_log set out_time=sysdate where module='log25';
+  commit;
+
+   execute immediate 'truncate table TBL_CLOSED_BRANCHES_CALL_COUNT';
+
+   insert into updation_log(module,in_time) values('log26',sysdate);
+  commit;
+
+   insert into  TBL_CLOSED_BRANCHES_CALL_COUNT (BRANCH_ID,BRANCH_NAME,AREA_ID,REGION_ID, STATUS, TOTAL_CALL_COUNT, CALLED_COUNT, PENDING_COUNT, PROCESS_DT)
+select t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id,0,count(*) Total,
+      sum( case
+         when t.status=1 then
+          1
+         else
+          0
+       end )Called,
+      sum( case
+         when t.status=0  then
+          1
+         else
+          0
+       end )Pending,trunc(sysdate)
+  from mana0809.daily_call_list t,mana0809.branch_dtl_new b  where t.branch_id=b.BRANCH_ID and exists (select p.branch_id from  mana0809.TBL_CLOSED_BRANCHES p
+ where t.branch_id=p.branch_id  and p.closed_date>=trunc(sysdate, 'MM'))and   t.dt>=trunc(sysdate, 'MM') group by t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id;
+ commit;
+
+ update updation_log set out_time=sysdate where module='log26';
+  commit;
+
+ ---Repledge call
+  insert into updation_log(module,in_time) values('log27',sysdate);
+  commit;
+
+ insert into  TBL_CLOSED_BRANCHES_CALL_COUNT (BRANCH_ID,BRANCH_NAME,AREA_ID,REGION_ID, STATUS, TOTAL_CALL_COUNT, CALLED_COUNT, PENDING_COUNT, PROCESS_DT)
+
+ select t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id,1,count(*),
+      sum( case
+         when t.status=1 then
+          1
+         else
+          0
+       end )Called,
+      sum( case
+         when t.status=0  then
+          1
+         else
+          0
+       end )Pending,trunc(sysdate)
+  from mana0809.tbl_repledge_call_list t,mana0809.branch_dtl_new b  where t.branch_id=b.BRANCH_ID and exists (select p.branch_id from  mana0809.TBL_CLOSED_BRANCHES p
+ where t.branch_id=p.branch_id  and p.closed_date>=trunc(sysdate, 'MM')) and  t.dt>=trunc(sysdate, 'MM') group by t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id;
+ commit;
+
+  update updation_log set out_time=sysdate where module='log27';
+  commit;
+ ----------------Auction call
+ insert into updation_log(module,in_time) values('log28',sysdate);
+  commit;
+
+  insert into  TBL_CLOSED_BRANCHES_CALL_COUNT (BRANCH_ID,BRANCH_NAME,AREA_ID,REGION_ID, STATUS, TOTAL_CALL_COUNT, CALLED_COUNT, PENDING_COUNT, PROCESS_DT)
+
+   select t.col_branch_id,b.BRANCH_NAME,b.area_id,b.reg_id,2,count(*),
+          sum( case when t.col_status=1 then
+          1
+         else
+          0
+       end )Called,
+      sum( case
+         when t.col_status=0  then
+          1
+         else
+          0
+       end )Pending,trunc(sysdate)
+
+  from mana0809.tbl_auction_call_list t,mana0809.branch_dtl_new b  where t.col_branch_id=b.BRANCH_ID and exists (select p.branch_id from  mana0809.TBL_CLOSED_BRANCHES p
+ where t.col_branch_id=p.branch_id  and p.closed_date>=trunc(sysdate, 'MM')) and
+  t.col_tra_dt >=trunc(sysdate, 'MM')  group by t.col_branch_id,b.BRANCH_NAME,b.area_id,b.reg_id;
+  commit;
+
+ update updation_log set out_time=sysdate where module='log28';
+  commit;
+  -----------OGL Call
+  insert into updation_log(module,in_time) values('log29',sysdate);
+  commit;
+
+ insert into  TBL_CLOSED_BRANCHES_CALL_COUNT (BRANCH_ID,BRANCH_NAME,AREA_ID,REGION_ID, STATUS, TOTAL_CALL_COUNT, CALLED_COUNT, PENDING_COUNT, PROCESS_DT)
+
+  select t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id,3,count(*),
+      sum( case
+         when t.call_stat=1 then
+          1
+         else
+          0
+       end )Called,
+      sum( case
+         when t.call_stat is null  then
+          1
+         else
+          0
+       end )Pending,trunc(sysdate)
+  from mana0809.TBL_OGL_CALL_CUST_MST t,mana0809.branch_dtl_new b  where t.branch_id=b.BRANCH_ID and exists (select p.branch_id from  mana0809.TBL_CLOSED_BRANCHES p
+where t.branch_id=p.branch_id  and p.closed_date>=trunc(sysdate, 'MM')) and t.call_gen_date >=trunc(sysdate, 'MM') group by  t.branch_id,b.BRANCH_NAME,b.area_id,b.reg_id;
+commit;
+
+update updation_log set out_time=sysdate where module='log29';
+  commit;
+----------- Lead_convsn d
+ insert into updation_log(module,in_time) values('log30',sysdate);
+  commit;
+
+    INSERT INTO            tbl_MALead_convrsn
+                           (cust_id,
+                           inv_id,
+                           gross_wt,
+                           conv_dt,
+                           cust_status,
+                           malead_id,
+                           pledge_value
+
+
+                           )
+       SELECT              g.cust_id,
+                           g.inv_id,
+                           g.net_wt,
+                           to_date(g.quot_dt),
+                           '' ,l.l_id ,
+                           g.pledge_value
+       FROM                mana0809.lead_cnvrt_cst g,
+                           mana0809.tbl_marketingactivity_lead l
+       WHERE               l.mobile = g.mob
+       AND                 g.reg_dt = to_date(sysdate)-1
+       AND                 g.reg_dt > to_date(l.entered_dt)
+       AND                 to_date(g.quot_dt) = to_date(sysdate) - 1
+       AND                 NOT EXISTS
+                               (SELECT        w.cust_id
+                               FROM           tbl_MALead_convrsn w
+                               WHERE          g.cust_id = w.cust_id) ;
+   COMMIT;
+
+    update updation_log set out_time=sysdate where module='log30';
+  commit;
+-------merging zone id
+merge into TBL_CLOSED_BRANCHES_CALL_COUNT x using mana0809.tbl_fzm_master y on (x.REGION_ID=y.region_id) when matched then update set x.zone_id=y.fzm_id;
+commit;
+
+  ----rebate sms report---
+  /* insert into updation_log(module,in_time) values('TBL_REBATE_SMS_DATA',sysdate);
+  commit;
+   insert into TBL_REBATE_SMS_DATA(PLEDGE_NUMBER,EFFECT_INT_RATE,INSERT_DATE,INSERT_DT,RBT_RCVED_STAT,SCHEME) select p.pledge_no,
+ case
+ when r.rep_count =1 and scheme_nm='PL'   then p.int_rate-1
+                     when r.rep_count =1 and scheme_nm='SX'   then p.int_rate-1
+                  when r.rep_count =3 and scheme_nm='PL'   then p.int_rate-1.5
+                     when r.rep_count =3 and scheme_nm='SX'   then p.int_rate-1.5
+                  when r.rep_count =18 and scheme_nm='PL'   then p.int_rate-2
+                    when r.rep_count =18 and scheme_nm='SX'   then p.int_rate-2
+                   when r.rep_count =15 and scheme_nm='PL'   then p.int_rate-4
+                    when r.rep_count =15 and scheme_nm='SX'   then p.int_rate-4
+                    when r.rep_count =12 and scheme_nm='PL'   then 12
+                    when r.rep_count =12 and scheme_nm='SX'   then 12
+                  when p.scheme_nm  not in ('SX','PL','BL') then p.int_rate
+                  when r.rep_count is null then p.int_rate
+                  else r.rep_count end as effect_int_rate,trunc(sysdate),sysdate,r.rep_count,r.schm_nm
+
+                     from TBL_FULL_REBATE r,
+                pledge_master p ,TBL_REBATE_SMS_HISTORY h
+     where r.pledge_no=p.pledge_no and p.pledge_no=h.pledge_no and h.sms_date=trunc(sysdate-1) ;
+
+     commit;
+     MERGE INTO TBL_REBATE_SMS_DATA  t
+    USING pledge_status h
+    ON (t.pledge_number = h.pledge_no)
+  WHEN MATCHED THEN
+    UPDATE SET t.status_id = h.status_id,t.closed_date=h.close_dt;
+    commit;
+    ------friday rebate sms report---
+    insert into TBL_FRIDAY_REBATE_SMS
+       (PLEDGE_NO,
+        PRESENT_PLEDGE_BAL,
+        INSERT_DATE,
+        INSERT_DT,
+        CUSTOMER_ID,
+        PLEDGE_DATE,
+        PLEDGE_VALUE,
+        ACTUAL_WT,
+     branch_id,send_date)
+       select p.pledge_no,
+              p.balance,
+              trunc(sysdate),
+              sysdate,
+              r.cust_id,p.tra_dt,p.pledge_val,p.act_weight,r.branch_id,r.tra_dt
+         from pledge_master p, TBL_REPLEDGE_ALERT r, pledge_status s
+        where p.pledge_no = r.pledge_no
+          and r.pledge_no = s.pledge_no
+          and trunc(r.tra_dt) = trunc(sysdate - 1);
+     commit;
+      MERGE INTO TBL_FRIDAY_REBATE_SMS  t
+    USING pledge_status h
+    ON (t.pledge_no = h.pledge_no)
+  WHEN MATCHED THEN
+    UPDATE SET t.pledge_status = h.status_id,t.settled_date=h.close_dt;
+    commit;
+
+     update updation_log set out_time=sysdate where module='TBL_REBATE_SMS_DATA';
+  commit;*/
+
+  ---OTRNP
+
+  ---crf id 101645---355646
+/*insert into updation_log(module,in_time) values('tbl_call_collection_dtls',sysdate);
+  commit;
+insert into tbl_call_collection_dtls(branch_id,pledge_no,int_acrued,col_date)
+  select /*+Parallel(6)bc.col_branch_id, bc.col_pledge_no,p.int_acrued,trunc(sysdate)
+  from mana0809.TBL_BRANCHCALLCENTRE_PLEDGES bc, mana0809.tbl_pledge_yesterday_live p
+ where bc.col_pledge_no = p.pledge_no and trunc(bc.col_tra_dt)=trunc(sysdate-1);
+ commit;
+ -------merging for interest
+ merge /*+ append parallel(6)into tbl_call_collection_dtls t
+using (SELECT SUM(decode(type, 'D', c.amount, c.amount * -1)) AS intrecieved,c.pledge_no as pledge_no
+FROM
+mana0809.cus_tran c
+WHERE c.account_no=10100 group by c.pledge_no )X
+on (t.pledge_no = X.pledge_no)
+when matched then
+  update  set t.INT_RECEIVED=X.intrecieved;
+commit;
+ update updation_log set out_time=sysdate where module='tbl_call_collection_dtls';
+  commit; */
+
+  /* insert into updation_log(module,in_time) values('maq_contest_compaign',sysdate);
+  commit;
+  proc_maq_contest_compaign;
+  update updation_log set out_time=sysdate where module='maq_contest_compaign';
+  commit;*/
+
+/*insert into updation_log(module,in_time) values('Moritoriumcall',sysdate);
+  commit;
+  proc_moritorium_call;
+  update updation_log set out_time=sysdate where module='Moritoriumcall';
+  commit;
+
+insert into updation_log(module,in_time) values('GL_newScheme',sysdate);
+  commit;
+  proc_gl_new_scheme;
+  update updation_log set out_time=sysdate where module='GL_newScheme';
+  commit;*/
+
+ /* ----crf-employee reference --355646
+   insert into updation_log(module,in_time) values('CUSTREFERENCE_CNVRSN',sysdate);
+  commit;
+  insert into TBL_CUSTREFERENCE_CNVRSN(CUST_ID,
+                                     INV_ID,
+                                     GROSS_WT,
+                                     CONV_DT,
+
+
+                                     MOBILE_NO,
+                                     LEAD_DT,
+
+                                     PLEDGE_VALUE,
+                                     PLEDGE_NO,
+                                     BRANCH_ID)
+  select g.cust_id, g.inv_id,g.net_wt,to_date(g.quot_dt),y.ref_phone,y.entry_dt,g.pledge_value, g.pledge_no,
+           g.branch_id from  mana0809.lead_cnvrt_cst g, mana0809.TBL_CUST_REFERRENCE y
+  where     g.mob=y.ref_phone and  to_date(g.quot_dt) >= to_date(sysdate) - 1 and y.conversion_status is null;
+  commit;
+  merge into  TBL_CUST_REFERRENCE cr using  TBL_CUSTREFERENCE_CNVRSN cn  on (cr.ref_phone=cn.mobile_no) when matched then update set cr.conversion_status=0;
+ commit;
+  update updation_log set out_time=sysdate where module='CUSTREFERENCE_CNVRSN';
+  commit;
+ ----end------*/
+
+ ----------------ba conversion new---
+             ----lead count
+
+            execute immediate 'truncate table tbl_baconvert_summary_rpt';
+
+ insert into updation_log(module,in_time) values('log20',sysdate);
+  commit;
+
+   insert into tbl_baconvert_summary_rpt (ba_code, tr_dt, lead_count,convert_count)
+select t.ba_code,to_date(e.ref_dt),
+       count(   b.customer_id),0
+
+  from mana0809.brand_awareness b
+  join mana0809.tbl_add_businessagent t
+    on (b.empcode = t.ba_code and to_date(t.enter_dt) >= t.start_dt)
+  left join mana0809.emp_reference e
+    on (t.ba_code = e.ba_code )
+ where trunc(e.ref_dt) between trunc(sysdate,'MM') and  trunc(sysdate)-1
+
+ group  by t.ba_code,to_date(e.ref_dt);
+
+  update updation_log set out_time=sysdate where module='log20';
+
+  commit;
+
+    -----------------------------112721------------------------
+
+--exit block for Bh if not entered within 3rd of every month
+
+insert into updation_log(module,in_time) values('Competitor',sysdate);
+  commit;
+insert into tbl_punch_block
+  (emp_code,
+   status,
+   block_dt,
+   module_id,
+   block_reason,
+   position_id,
+   branch_id)
+  select distinct e.emp_code,
+                  1,
+                  sysdate,
+                  809,
+                  'Update Competitor Distance Details in sales marketing portal',
+                  e.post_id,
+                  br.branch_id
+    from mana0809.employee_master e, mana0809.Branch_Detail_New br
+   where e.branch_id = br.branch_id
+     and e.status_id = 1
+     and e.post_id = 10
+     and trunc(sysdate) > trunc((sysdate), 'month') + 2
+     and br.branch_id not in
+         (select t.branch_id
+            from mana0809.tbl_competitors_dtls t
+           where trunc(t.bh_dt) >= trunc((sysdate), 'month'));
+           commit;
+--exit block for ah
+insert into tbl_punch_block
+  (emp_code,
+   status,
+   block_dt,
+   module_id,
+   block_reason,
+   position_id,
+   branch_id)
+  select distinct e.emp_code,
+                  1,
+                  sysdate,
+                  809,
+                  'Update Competitor Distance Details in sales marketing portal',
+                  e.post_id,
+                  br.branch_id
+    from mana0809.employee_master e, mana0809.Branch_Detail_New br
+   where e.branch_id = br.branch_id
+     and e.status_id = 1
+     and e.post_id = 136
+     and br.area_id in
+         (select distinct br.area_id
+            from mana0809.Branch_Detail_New    br,
+                 mana0809.tbl_competitors_dtls t
+           where t.branch_id = br.branch_id
+             and t.status = 0
+             and (to_date(sysdate) - to_date(t.bh_dt)) > 5);
+       commit;
+   --exit block for rm
+  insert into tbl_punch_block
+    (emp_code,
+     status,
+     block_dt,
+     module_id,
+     block_reason,
+     position_id,
+     branch_id)
+    select distinct e.emp_code,
+                    1,
+                    sysdate,
+                    809,
+                    'Update Competitor Distance Details in sales marketing portal',
+                    e.post_id,
+                    br.branch_id
+      from mana0809.employee_master      e,
+           mana0809.Branch_Detail_New    br,
+           mana0809.tbl_competitors_dtls t
+     where e.branch_id = br.branch_id
+       and e.status_id = 1
+       and e.post_id = 199
+       and br.reg_id in
+           (select distinct br.reg_id
+              from mana0809.Branch_Detail_New    br,
+                   mana0809.tbl_competitors_dtls t
+             where t.branch_id = br.branch_id
+               and t.status = 1
+               and (to_date(sysdate) - to_date(t.ah_dt)) > 5);
+commit;
+update updation_log set out_time=sysdate where module='Competitor';
+commit;
+----------------------------112721 end------------------------
+--------------------------112839 START-------------------------
+
+insert into updation_log(module,in_time) values('LCACONVERSION',sysdate);
+  commit;
+  proc_re_conversion;
+ update updation_log set out_time=sysdate where module='LCACONVERSION';
+  commit;
+---------------------------112839 END--------------------------
+----------------------------112919 START-----------------------
+ insert into updation_log(module,in_time) values('CRCaccess',sysdate);
+  commit;
+  PROC_CRC_NEWEMP_ACCESS;
+ update updation_log set out_time=sysdate where module='CRCaccess';
+  commit;
+----------------------------112919 END-----------------------
+
+----------------------------Branch category START-----------------------
+ --insert into updation_log(module,in_time) values('Branch_categ',sysdate);
+  --commit;
+  --proc_branch_complaint_categ;
+ --update updation_log set out_time=sysdate where module='Branch_categ';
+  --commit;
+----------------------------Branch category END-----------------------
+
+
+
+     --convertcount
+     insert into updation_log(module,in_time) values('log21',sysdate);
+  commit;
+
+merge into tbl_baconvert_summary_rpt x using(
+    select t.ba_code,
+       count(   b.customer_id) cnt
+  from mana0809.brand_awareness b
+  join mana0809.tbl_add_businessagent t
+    on (b.empcode = t.ba_code and  to_date(t.enter_dt) >= t.start_dt)
+  join mana0809.CUSTOMER c
+    on (b.customer_id = c.cust_id)
+  join mana0809.branch_dtl_new bn
+    on (c.branch_id = bn.branch_id)
+  left join mana0809.emp_reference e
+    on (t.ba_code = e.ba_code and
+       (c.phone2 = e.ref_phn1 or c.phone2 = e.ref_phn2))
+where trunc(e.ref_dt) between trunc(sysdate,'MM') and  trunc(sysdate)-1
+ group  by t.ba_code)y on (x.ba_code=y.ba_code) when matched then update set x.convert_count=y.cnt;
+ commit;
+
+  update updation_log set out_time=sysdate where module='log21';
+  commit;
+
+  insert into updation_log(module,in_time) values('promised_callcnvrn',sysdate);
+  commit;
+  proc_promisedcall_conversn;
+ update updation_log set out_time=sysdate where module='promised_callcnvrn';
+  commit;
+
+ ---------------------------373826Dilson
+  ----------------AMS H
+  SELECT COUNT(t.emp_code) INTO cnt FROM tbl_punch_block t WHERE t.module_id IN(4000) AND t.status=1 AND TRUNC(t.block_dt)=trunc(SYSDATE);
+IF (cnt>0) THEN
+----------------------------------------------------------ASS AMS HEAD
+insert into tbl_punch_block (emp_code,  
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+ select DISTINCT e.emp_code,1,sysdate,5001,'Pending TA by TechLeads > 5 Days',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-484
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5001 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+COMMIT;
+----------------------------------------------------------------------------------------------------------AMS HEAD
+ insert into tbl_punch_block (emp_code,  
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+ select DISTINCT e.emp_code,1,sysdate,5001,'Pending TA by TechLeads > 5 Days',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-490
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5001 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+COMMIT;
+END IF;
+  
+  
+  ------------------------------------------------373826Dilson
+
+
+----------------------------------------------------------
+exception
+  when others then
+    rollback;
+    insert into dayend_error_log values (sysdate,'ERROR FOUND IN-'||dbms_utility.format_error_backtrace||', ERROR OCCURED-'||dbms_utility.format_error_stack,dbms_utility.format_call_stack);
+    commit;
+end;
+

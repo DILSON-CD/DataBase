@@ -1,0 +1,677 @@
+create or replace procedure itproject_punching_block IS
+--DECLARE
+
+CURSOR cur_draftno is select t.draft_no from mana0809.srm_draft_master t, mana0809.SRM_TECHLEAD_STATUS u, mana0809.srm_software_request s Where t.draft_no = u.draft_no and t.status_id in(2, 36) and u.status_id = 1 and s.draft_id = t.draft_no and s.status_id = 1 and u.request_id = s.request_id and t.status_id <> 22;
+--cursor cur_user is select t.draft_id from mana0809.SRM_SOFTWARE_REQUEST t where t.status_id = 13;
+--cursor cur_live is select distinct d.draft_id from mana0809.srm_software_request d, mana0809.srm_draft_master t where d.status_id = 15 and t.draft_no = d.draft_id;
+--cursor cur_user_edit is select t.draft_no,t.user_id from mana0809.srm_draft_master t where t.status_id = 22;
+--CURSOR cur_testta IS select distinct t.draft_id,t.test_lead from mana0809.srm_request_assign sra,mana0809.SRM_TESTING t where sra.request_id=t.request_id and sra.status in (0, 1) and t.request_id=sra.request_id and t.status_id=0;
+CURSOR hod_draftno is  select t.draft_no from mana0809.srm_draft_master t, mana0809.department_major d Where t.status_id in(0) and t.dept_id = d.department_id AND t.draft_no IS NOT NULL;
+
+
+r_draft cur_draftno%rowtype;
+--r_user cur_user%rowtype;
+--r_live cur_live%rowtype;
+--r_usredt cur_user_edit%rowtype;
+--r_tsta  cur_testta%rowtype;
+hod_draft hod_draftno%rowtype;
+
+
+ v_ErrDesc                        TBL_ITPROJECTS_ERROR_DTL.error_description%type;
+ v_ErrDtl                         TBL_ITPROJECTS_ERROR_DTL.error_details%type;
+ v_ErrID                          TBL_ITPROJECTS_ERROR_DTL.error_id%type;
+ 
+
+v_emp array;
+v_post number;
+v_br number;
+sr     number;
+pendcnt NUMBER;
+v_cnt  NUMBER;
+
+BEGIN
+  DELETE FROM tbl_punch_block t WHERE t.module_id IN (4000,4001);
+COMMIT;
+
+ open cur_draftno;
+       Loop
+       Fetch cur_draftno into r_draft;
+       Exit when cur_draftno%notfound;
+       
+        select DISTINCT u.sr_no
+      into sr
+      from mana0809.tbl_tracker_work_log u
+     where u.note_id = to_char(r_draft.draft_no)
+       and u.received_date =(select max(u.received_date)
+              from mana0809.tbl_tracker_work_log u
+             where u.note_id = to_char(r_draft.draft_no));
+ if (sr = 5 or sr = 2) then
+  insert into tbl_punch_block (emp_code,  --(TApending >5days)
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT u.to_emp_ids,1,sysdate,4000,'TA Pending > 5 Days '|| r_draft.draft_no ||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (5, 2) ---5 TApending,2 TL added,TL changed,
+   and (trunc(sysdate) - to_date(u.received_date)) > 5
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (select s.responsible_member
+  from mana0809.srm_draft_master     t,
+       mana0809.SRM_TECHLEAD_STATUS  u,
+       mana0809.srm_software_request s
+ Where t.draft_no = u.draft_no
+   and t.status_id in (2, 36)
+   and u.status_id = 1
+   and s.draft_id = t.draft_no
+   and s.status_id = 1
+   and u.request_id = s.request_id
+   and t.status_id <> 22
+   AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4000 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+ COMMIT;
+ 
+ -----------------sms ta pending 
+ insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION,process_dt,send_dt,status,smsid,crf_id)
+ select DISTINCT u.to_emp_ids,ee.mobile_no,4000,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| r_draft.draft_no||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.'
+,SYSDATE,SYSDATE,1,'1007966993018093374',r_draft.draft_no
+ from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(r_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (5, 2) ---5 TApending,2 TL added,TL changed,
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (select s.responsible_member
+  from mana0809.srm_draft_master     t,
+       mana0809.SRM_TECHLEAD_STATUS  u,
+       mana0809.srm_software_request s
+ Where t.draft_no = u.draft_no
+   and t.status_id in (2, 36)
+   and u.status_id = 1
+   and s.draft_id = t.draft_no
+   and s.status_id = 1
+   and u.request_id = s.request_id
+   and t.status_id <> 22);
+   --AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4000 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+
+ COMMIT;
+
+  
+ -----------------sms ta pending 
+  elsif (sr = 3 or sr = 23) then
+ ------------------------
+ insert into tbl_punch_block (emp_code,  --(TApending edited crf > 3 days)
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT u.to_emp_ids,1,sysdate,4001,'TA Pending for edited CRF > 3 Days '||r_draft.draft_no||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (3,23)  ---3 CRF Edited,23 CRF Edited
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (select s.responsible_member
+  from mana0809.srm_draft_master     t,
+       mana0809.SRM_TECHLEAD_STATUS  u,
+       mana0809.srm_software_request s
+ Where t.draft_no = u.draft_no
+   and t.status_id in (2, 36)
+   and u.status_id = 1
+   and s.draft_id = t.draft_no
+   and s.status_id = 1
+   and u.request_id = s.request_id
+   and t.status_id <> 22
+    AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4001 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+  COMMIT;
+ ------------------sms edited crf ta pending
+insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT u.to_emp_ids,ee.mobile_no,4001,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| r_draft.draft_no||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',r_draft.draft_no
+
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(r_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (3,23)  ---3 CRF Edited,23 CRF Edited
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (select s.responsible_member
+  from mana0809.srm_draft_master     t,
+       mana0809.SRM_TECHLEAD_STATUS  u,
+       mana0809.srm_software_request s
+ Where t.draft_no = u.draft_no
+   and t.status_id in (2, 36)
+   and u.status_id = 1
+   and s.draft_id = t.draft_no
+   and s.status_id = 1
+   and u.request_id = s.request_id
+   and t.status_id <> 22);
+   --- AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4001 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+  COMMIT;
+  
+ 
+ ------------------sms edited crf ta pending
+end if;
+         End loop;
+  Close cur_draftno;
+
+  /* open cur_user;
+       Loop
+       Fetch cur_user into r_user;
+       Exit when cur_user%notfound;
+       
+        select DISTINCT u.sr_no
+      into sr
+      from mana0809.tbl_tracker_work_log u
+     where u.note_id = to_char(r_user.draft_id)
+       and u.received_date =(select max(u.received_date)
+              from mana0809.tbl_tracker_work_log u
+             where u.note_id = to_char(r_user.draft_id));
+ if (sr = 12) then
+
+        insert into tbl_punch_block (emp_code,   ---uat user pending > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT u.to_emp_ids,1,sysdate,4002,'UAT Pending by user > 3 days '||r_user.draft_id||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_user.draft_id)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (12)   -- 12 pending for pre uat
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select t.user_id from mana0809.SRM_SOFTWARE_REQUEST t where t.status_id = 13)
+    AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4002 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+    COMMIT;
+   -----------------sms  uat user
+   insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT u.to_emp_ids,ee.mobile_no,4002,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| r_user.draft_id||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',r_user.draft_id
+
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(r_user.draft_id)
+   and e.emp_code= u.to_emp_ids
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (12)   -- 12 pending for pre uat
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select t.user_id from mana0809.SRM_SOFTWARE_REQUEST t where t.status_id = 13)
+    AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4002 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+    COMMIT;
+   
+   ------------------sms uat user
+     insert into tbl_punch_block (emp_code,  -- uat itcoordinator pending > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+    SELECT DISTINCT k.empcode,1,sysdate,4003,'UAT Pending for itcoordinator > 3 days '||r_user.draft_id||'',f.post_id,f.branch_id FROM  mana0809.employee_master f,tbl_itcoordinators k  INNER JOIN( select u.to_emp_ids,1,sysdate,899,'UAT Pending',e.post_id,e.branch_id,e.department_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_user.draft_id)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (12)   -- 12 pending for pre uat
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select t.user_id from mana0809.SRM_SOFTWARE_REQUEST t where t.status_id = 13))x
+   ON k.dep_id=x.department_id
+
+   WHERE k.empcode=f.emp_code
+   AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=k.empcode AND t.module_id = 4003 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+   ----------------
+END IF;
+        End loop;
+  Close cur_user;
+
+  open cur_live;
+       Loop
+       Fetch cur_live into r_live;
+       Exit when cur_live%notfound;
+       
+          select DISTINCT u.sr_no
+      into sr
+      from mana0809.tbl_tracker_work_log u
+     where u.note_id = to_char(r_live.draft_id)
+       and u.received_date =(select max(u.received_date)
+              from mana0809.tbl_tracker_work_log u
+             where u.note_id = to_char(r_live.draft_id));
+ if (sr = 19) then
+
+        insert into tbl_punch_block (emp_code,           ---live close user pending > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT u.to_emp_ids,1,sysdate,4004,'LIVE & CLOSE Pending > 3days '||r_live.draft_id||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_live.draft_id)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (19) ---19 LIVE & CLOSED
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select distinct d.user_id from mana0809.srm_software_request d, mana0809.srm_draft_master t where d.status_id = 15 and t.draft_no = d.draft_id)
+    AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4004 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+      ---------------sms live close
+      insert into TBL_TRACKER_SMS (emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT u.to_emp_ids,ee.mobile_no,4004,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| r_live.draft_id||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',r_live.draft_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(r_live.draft_id)
+   and e.emp_code= u.to_emp_ids
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (19) ---19 LIVE & CLOSED
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select distinct d.user_id from mana0809.srm_software_request d, mana0809.srm_draft_master t where d.status_id = 15 and t.draft_no = d.draft_id)
+    AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 4004 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+      
+      ---------------sms live close
+       insert into tbl_punch_block (emp_code,           ---live close itcoordinator pending > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+        SELECT DISTINCT k.empcode,1,sysdate,4005,'LIVE & CLOSE Pending for IT coordinator > 3days '||r_live.draft_id||'',f.post_id,f.branch_id FROM  mana0809.employee_master f,tbl_itcoordinators k  INNER JOIN(select u.to_emp_ids,1,sysdate,899,'Feedback Pending',e.post_id,e.branch_id,e.department_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_live.draft_id)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (19) ---19 LIVE & CLOSED
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+   and u.to_emp_ids in (select distinct d.user_id from mana0809.srm_software_request d, mana0809.srm_draft_master t where d.status_id = 15 and t.draft_no = d.draft_id))x
+     ON k.dep_id=x.department_id
+
+   WHERE k.empcode=f.emp_code
+      AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=k.empcode AND t.module_id = 4005 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+   COMMIT;
+
+      --------------
+      END IF;
+        End loop;
+  Close cur_live;
+
+   open cur_user_edit;
+       Loop
+       Fetch cur_user_edit into r_usredt;
+       Exit when cur_user_edit%notfound;
+
+       --space FOR NOT edited crf punch blok FOR users
+        select DISTINCT u.sr_no
+      into sr
+      from mana0809.tbl_tracker_work_log u
+     where u.note_id = to_char(r_usredt.draft_no)
+       and u.received_date =(select max(u.received_date)
+              from mana0809.tbl_tracker_work_log u
+             where u.note_id = to_char(r_usredt.draft_no));
+ if (sr = 3 or sr = 22) then
+        insert into tbl_punch_block (emp_code,   ---edit crf user pending > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT to_char(r_usredt.user_id),1,sysdate,4006,'CRF edit pending by user > 3 days '||r_usredt.draft_no||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_usredt.draft_no)
+   and e.emp_code= to_char(r_usredt.user_id)
+   and u.sr_no in (3,22)   -- 3,22 returnd to user
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+  AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=to_char(r_usredt.user_id) AND t.module_id = 4006 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+
+
+   COMMIT;
+
+   -------------sms  crf edit
+   insert into TBL_TRACKER_SMS (emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT u.to_emp_ids,ee.mobile_no,4006,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| r_usredt.draft_no||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',r_usredt.draft_no
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(r_usredt.draft_no)
+   and e.emp_code= to_char(r_usredt.user_id)
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (3,22)   -- 3,22 returnd to user
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-sep-2022')
+  AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=to_char(r_usredt.user_id) AND t.module_id = 4006 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+
+
+   COMMIT;
+   ------------sms  crf edit
+    insert into tbl_punch_block (emp_code,  -- edit crf user pending for it coor > 3days
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+      SELECT DISTINCT k.empcode,1,sysdate,4007,'CRF edit Pending for itcoordinator > 3 days '||r_usredt.draft_no||'',f.post_id,f.branch_id FROM  mana0809.employee_master f,tbl_itcoordinators k  INNER JOIN( select DISTINCT to_char(r_usredt.user_id),1,sysdate,3035,'CRF edit pending by user > 3 days',e.post_id,e.branch_id,e.department_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_usredt.draft_no)
+   and e.emp_code= to_char(r_usredt.user_id)
+   and u.sr_no in (3,22)   -- 3,22 returnd to user
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-sep-2022'))x
+    ON k.dep_id=x.department_id
+
+   WHERE k.empcode=f.emp_code
+     AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=k.empcode AND t.module_id = 4007 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+
+
+   COMMIT;
+
+
+END IF;
+        End loop;
+  Close cur_user_edit;*/
+
+  /* open cur_testta;
+       Loop
+       Fetch cur_testta into r_tsta;
+       Exit when cur_testta%notfound;
+
+       insert into tbl_punch_block (emp_code,  --(Testing TApending >5days)
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT r_tsta.test_lead,1,sysdate,3034,'Testing TA Pending > 5 Days',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(r_tsta.draft_id)
+   and e.emp_code= r_tsta.test_lead
+   and u.sr_no in (30) ---30 testing TApending
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   and u.to_emp_ids = to_char(r_tsta.test_lead)
+   AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=r_tsta.test_lead AND t.module_id = 3034 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+
+       COMMIT;
+
+
+
+        End loop;
+  Close cur_testta;*/
+  open hod_draftno;
+       Loop
+       Fetch hod_draftno into hod_draft;
+       Exit when hod_draftno%notfound;
+       
+        SELECT DISTINCT u.sr_no
+      into sr
+      from mana0809.tbl_tracker_work_log u
+     where u.note_id = to_char(hod_draft.draft_no)
+       and u.received_date =(select max(u.received_date)
+              from mana0809.tbl_tracker_work_log u
+             where u.note_id = to_char(hod_draft.draft_no));
+ if (sr = 0) then
+  insert into tbl_punch_block (emp_code,  --(hodpending >3days)
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+       select DISTINCT u.to_emp_ids,1,sysdate,5000,'HOD Approve Pending > 3 Days '||hod_draft.draft_no||'',e.post_id,e.branch_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(hod_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (0) ---0 hodpending
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (SELECT d.head_id
+from mana0809.srm_draft_master t,
+ mana0809.department_major d 
+ WHERE t.dept_id=d.department_id
+   AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 5000 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+ COMMIT;
+ ---------------------sms hod
+ insert into TBL_TRACKER_SMS (emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT u.to_emp_ids,ee.mobile_no,5000,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID '|| hod_draft.draft_no||'  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',hod_draft.draft_no
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e,mana0809.emp_greeting_master ee
+ where u.note_id = to_char(hod_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   AND e.emp_code=ee.emp_code
+   and u.sr_no in (0) ---0 hodpending
+   and (trunc(sysdate) - to_date(u.received_date)) > 1
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (SELECT d.head_id
+from mana0809.srm_draft_master t,
+ mana0809.department_major d 
+ WHERE t.dept_id=d.department_id);
+  -- AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=u.to_emp_ids AND t.module_id = 5000 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE)));
+ COMMIT;
+ ----------------------sms hod
+  insert into tbl_punch_block (emp_code,  --(it coord   hodpending >3days)
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+   select DISTINCT k.empcode,1,sysdate,6000,'HOD Approve Pending > 3 Days(itcoordinator) '||hod_draft.draft_no||'',x.post_id,x.branch_id FROM tbl_itcoordinators k  INNER JOIN (SELECT u.to_emp_ids,1,sysdate,5000,'HOD Approve Pending > 3 Days',e.post_id,e.branch_id,e.department_id
+  from mana0809.tbl_tracker_work_log u,mana0809.employee_master e
+ where u.note_id = to_char(hod_draft.draft_no)
+   and e.emp_code= u.to_emp_ids
+   and u.sr_no in (0) ---0 hodpending
+   and (trunc(sysdate) - to_date(u.received_date)) > 3
+   AND to_date(u.received_date)>to_date('01-dec-2022')
+   and u.to_emp_ids in (SELECT d.head_id
+from mana0809.srm_draft_master t,
+ mana0809.department_major d 
+ WHERE t.dept_id=d.department_id))x
+ ON k.dep_id=x.department_id
+   AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code= k.empcode AND t.module_id = 6000 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+ END IF;
+  
+         End loop;
+  Close hod_draftno;
+  
+ 
+/* SELECT DISTINCT COUNT(T.DRAFT_NO) INTO v_cnt
+  FROM MANA0809.SRM_DRAFT_MASTER     T,
+       MANA0809.SRM_TECHLEAD_STATUS  U,
+       MANA0809.SRM_SOFTWARE_REQUEST S,
+       MANA0809.tbl_tracker_work_log k
+ WHERE T.DRAFT_NO = U.DRAFT_NO
+ AND t.draft_no=to_char(k.note_id)
+   AND T.STATUS_ID IN (2, 36)
+   AND U.STATUS_ID = 1
+   AND S.DRAFT_ID = T.DRAFT_NO
+   AND S.STATUS_ID = 1
+   AND U.REQUEST_ID = S.REQUEST_ID
+   AND T.STATUS_ID <> 22
+   AND k.sr_no=5
+   and (trunc(sysdate) - to_date(k.received_date)) > 6
+   AND to_date(k.received_date)>to_date('01-dec-2022');
+   
+   IF (v_cnt > 0) THEN
+     
+    insert into tbl_punch_block (emp_code,  ---ass ams head
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+                                   select DISTINCT e.emp_code,1,sysdate,5001,'block for ASS AMS HEAD(Pending TA by TechLeads > 6 Days)',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-484
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5001 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+ END IF;
+   SELECT DISTINCT COUNT(T.DRAFT_NO) INTO v_cnt
+  FROM MANA0809.SRM_DRAFT_MASTER     T,
+       MANA0809.SRM_TECHLEAD_STATUS  U,
+       MANA0809.SRM_SOFTWARE_REQUEST S,
+       MANA0809.tbl_tracker_work_log k
+ WHERE T.DRAFT_NO = U.DRAFT_NO
+ AND t.draft_no=to_char(k.note_id)
+   AND T.STATUS_ID IN (2, 36)
+   AND U.STATUS_ID = 1
+   AND S.DRAFT_ID = T.DRAFT_NO
+   AND S.STATUS_ID = 1
+   AND U.REQUEST_ID = S.REQUEST_ID
+   AND T.STATUS_ID <> 22
+   AND k.sr_no=5
+   and (trunc(sysdate) - to_date(k.received_date)) > 7
+   AND to_date(k.received_date)>to_date('01-dec-2022');
+   
+   IF (v_cnt > 0) THEN
+     
+    insert into tbl_punch_block (emp_code,  ---ams head
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+                                   select DISTINCT e.emp_code,1,sysdate,5002,'block for AMS HEAD(Pending TA by TechLeads > 7 Days)',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-490
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5002 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+ END IF;
+ 
+      SELECT DISTINCT COUNT(T.DRAFT_NO) INTO v_cnt
+  FROM MANA0809.SRM_DRAFT_MASTER     T,
+       MANA0809.SRM_TECHLEAD_STATUS  U,
+       MANA0809.SRM_SOFTWARE_REQUEST S,
+       MANA0809.tbl_tracker_work_log k
+ WHERE T.DRAFT_NO = U.DRAFT_NO
+ AND t.draft_no=to_char(k.note_id)
+   AND T.STATUS_ID IN (2, 36)
+   AND U.STATUS_ID = 1
+   AND S.DRAFT_ID = T.DRAFT_NO
+   AND S.STATUS_ID = 1
+   AND U.REQUEST_ID = S.REQUEST_ID
+   AND T.STATUS_ID <> 22
+   AND k.sr_no IN(3,23)
+   and (trunc(sysdate) - to_date(k.received_date)) > 3
+   AND to_date(k.received_date)>to_date('01-dec-2022');
+   
+   IF (v_cnt > 0) THEN
+     
+    insert into tbl_punch_block (emp_code,  ---ass ams head
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+                                   select DISTINCT e.emp_code,1,sysdate,5003,'Block for Ass AMS Head(TA Pending for edited CRF > 3 Days)',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-484
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5003 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+   insert into tbl_punch_block (emp_code,  ---ams head
+                                  status,
+                                  block_dt,
+                                  module_id,
+                                  block_reason,
+                                  position_id,
+                                  branch_id)
+                                   select DISTINCT e.emp_code,1,sysdate,5004,'Block for AMS Head(TA Pending for edited CRF > 3 Days)',e.post_id,e.branch_id
+  FROM mana0809.post_mst t,mana0809.employee_master e
+ WHERE t.post_id=e.post_id AND t.post_id=-490
+ AND NOT EXISTS (SELECT * FROM tbl_punch_block t WHERE t.emp_code=e.emp_code AND t.module_id = 5004 AND t.status=1 AND to_date(t.block_dt)=to_date(SYSDATE));
+ COMMIT;
+ END IF;
+  SELECT DISTINCT COUNT(T.DRAFT_NO) INTO v_cnt
+  FROM MANA0809.SRM_DRAFT_MASTER     T,
+       MANA0809.SRM_TECHLEAD_STATUS  U,
+       MANA0809.SRM_SOFTWARE_REQUEST S,
+       MANA0809.tbl_tracker_work_log k
+ WHERE T.DRAFT_NO = U.DRAFT_NO
+ AND t.draft_no=to_char(k.note_id)
+   AND T.STATUS_ID IN (2, 36)
+   AND U.STATUS_ID = 1
+   AND S.DRAFT_ID = T.DRAFT_NO
+   AND S.STATUS_ID = 1
+   AND U.REQUEST_ID = S.REQUEST_ID
+   AND T.STATUS_ID <> 22
+   AND k.sr_no=5
+   and (trunc(sysdate) - to_date(k.received_date)) > 1
+   AND to_date(k.received_date)>to_date('01-dec-2022');
+   
+   IF (v_cnt > 0) THEN
+     ---send sms ass ams head
+  insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT e.emp_code,k.mobile_no,5001,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',''
+        FROM mana0809.post_mst t,mana0809.employee_master e,mana0809.emp_greeting_master k
+ WHERE t.post_id=e.post_id AND t.post_id=-484 AND k.emp_code=e.emp_code;
+COMMIT;
+---send sms  ams head
+insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT e.emp_code,k.mobile_no,5002,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',''
+        FROM mana0809.post_mst t,mana0809.employee_master e,mana0809.emp_greeting_master k
+ WHERE t.post_id=e.post_id AND t.post_id=-490 AND k.emp_code=e.emp_code;
+COMMIT;
+ END IF;
+ 
+ 
+      SELECT DISTINCT COUNT(T.DRAFT_NO) INTO v_cnt
+  FROM MANA0809.SRM_DRAFT_MASTER     T,
+       MANA0809.SRM_TECHLEAD_STATUS  U,
+       MANA0809.SRM_SOFTWARE_REQUEST S,
+       MANA0809.tbl_tracker_work_log k
+ WHERE T.DRAFT_NO = U.DRAFT_NO
+ AND t.draft_no=to_char(k.note_id)
+   AND T.STATUS_ID IN (2, 36)
+   AND U.STATUS_ID = 1
+   AND S.DRAFT_ID = T.DRAFT_NO
+   AND S.STATUS_ID = 1
+   AND U.REQUEST_ID = S.REQUEST_ID
+   AND T.STATUS_ID <> 22
+   AND k.sr_no IN(3,23)
+   and (trunc(sysdate) - to_date(k.received_date)) > 1
+   AND to_date(k.received_date)>to_date('01-dec-2022');
+   
+    IF (v_cnt > 0) THEN
+     ---send sms ass ams head ta for edited
+  insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT e.emp_code,k.mobile_no,5001,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',''
+        FROM mana0809.post_mst t,mana0809.employee_master e,mana0809.emp_greeting_master k
+ WHERE t.post_id=e.post_id AND t.post_id=-484 AND k.emp_code=e.emp_code;
+COMMIT;
+---send sms  ams head ta for edited
+insert into TBL_TRACKER_SMS ( emp_code,phno,MODULE,DESCRIPTION ,process_dt,send_dt,status,smsid,crf_id)
+       select DISTINCT e.emp_code,k.mobile_no,5002,'Dear Sir/ Madam, Please take necessary action to complete the pending task related to CRF ID  in IT Projects to avoid the exit block. Manappuram Finance Ltd.',SYSDATE,SYSDATE,1,'1007966993018093374',''
+        FROM mana0809.post_mst t,mana0809.employee_master e,mana0809.emp_greeting_master k
+ WHERE t.post_id=e.post_id AND t.post_id=-490 AND k.emp_code=e.emp_code;
+COMMIT;
+ END IF;*/
+   
+   
+
+
+ exception when others then
+
+    v_ErrID:=SEQ_Itproject_ERRORID.nextval;
+
+    v_ErrDesc   :=Sqlerrm;
+    v_ErrDtl    :=Sqlerrm || dbms_utility.format_error_backtrace ||
+           dbms_utility.format_error_stack ||dbms_utility.format_call_stack;
+    insert into TBL_ITPROJECTS_ERROR_DTL(error_id, proc_name, error_description, error_details, tra_dt)
+                                values(v_ErrID,'itproject_punching_block',v_ErrDesc,v_ErrDtl,sysdate);
+    commit;
+
+
+ END itproject_punching_block;

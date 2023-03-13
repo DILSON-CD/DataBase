@@ -1,0 +1,467 @@
+create or replace procedure srm_techlead_verification_new(p_flag in varchar2,
+                                            p_pageval in varchar2,
+                                            p_parval1 in varchar2,
+                                            p_parval2 in varchar2,
+                                            p_parval3 in varchar2,
+                                            qry_result OUT RESULT_TYPE.QRY_RESULT)
+is
+dtl                                                    array;
+datas                                                    array;
+status                                                 number;
+ v_usr                                      array;
+req_type                                               number;
+v_count                                                 number;
+v_info_sec                                             varchar2(100);
+ cnt                                                    number;
+ cnt1                                                   number;
+ v_devlp                                                number;
+ vtest                                                  number;
+ v_codervw                                              number;
+ v_vapt                                                 number;
+ v_manpwr                                               number;
+ v_cost                                                 number;
+ v_dept                                                number;
+ v_tabal                                                  number;
+  v_tabal2                                                  number;
+ v_empName                                             varchar2(200);
+ v_empicon                                             varchar(10);
+ v_deptmnt                                             varchar(100);
+ v_desigtn                                             varchar(100);
+ deptid                                                number;
+ empnamelist                                           varchar2(4000);
+ empidlist                                             varchar2(4000);
+ Rows                                                  array;
+ Cols                                                  array;
+ v_phase                                               varchar2(4000);
+ asigto                                                number;
+ tarstdt                                               varchar2(4000);
+ tarenddt                                              varchar2(4000);
+ v_change                                              number;
+ v_work                                                number;
+ v_cntno                                               number;
+ v_wrkval                                              number;
+ v_wrkcost                                             number;
+ sl                                                    number;
+ request_count                                         number(10);
+ request_compleat_count                                number(10);
+ v_subject                                             varchar2(4000);
+ v_priority                                            number;
+ v_creater                                             number;
+ v_notid                                               varchar2(4000);
+ v_data                                                varchar2(4000);
+ v_empdata                                             varchar2(4000);
+ strtdt                                                varchar2(4000);
+ endtrdt                                               varchar2(4000);
+ v_cnt                                                 number;
+ v_depid                                               number;
+ v_user_depid                                          number;
+ v_head                                                number;
+ seqid                                                 number;
+ v_content                                             clob;
+ v_tacomplt                                            varchar2(4000);
+ v_devpname                                            varchar2(4000);
+ v_dtl                                                 varchar2(4000);
+ v_caldata                                             array;
+ v_table                                               clob;
+ v_tabdata                                             array;
+ v_tabbody                                             clob;
+ v_mod                                                 number;
+ v_developer                                           number;
+ testtl                                                number;
+  v_manpower                                            number;
+   v_crfcost                                          number;
+    crf_cost                                          number;
+ testtlnamelist                                        varchar2(4000);
+ crfid                                                 number;
+ v_team                                                number;
+  v_user                                               number;
+ v_status                                            number;
+ v_editseq                                           number;
+ v_it_team                                            number;
+ v_objective                                         varchar2(4000);
+ v_head_app_dt                                       date;
+ v_head_app_by                                       number;
+ v_module_type                                       varchar2(500);
+ v_related_module                                    varchar2(500);
+ v_priorityy                                          varchar2(500);
+ v_tech_lead                                        varchar2(4000);
+ v_startdt                                             date;
+ v_target                                              date;
+ CRF_rjctCount                                          number;
+ v_ErrDesc                                             TBL_ITPROJECTS_ERROR_DTL.error_description%type;
+ v_ErrDtl                                              TBL_ITPROJECTS_ERROR_DTL.error_details%type;
+ v_ErrID                                               TBL_ITPROJECTS_ERROR_DTL.error_id%type;
+begin
+savepoint tran_start;
+
+
+
+if p_flag='TACONFIRM' then
+  --101374 µ 1927 µ 313301 µ 31 µ 12.40 µ 43.4 µ remark µ
+----1         2       3       4     5       6      7
+dtl:=splitstr(p_parval1,'µ');
+select jp.module_type into req_type from srm_draft_master jp where jp.draft_no=dtl(1);
+     select a.DEPARTMENT_ID,a.EMP_NAME,substr(replace (translate (initcap (REGEXP_REPLACE(REGEXP_REPLACE(a.EMP_NAME,'[.]',' '), '[^0-9A-Za-z .]', '')), ' abcdefghijklmnopqrstuvwxyz', ' '), ' '),1,2),b.dep_name,c.designation into v_dept,v_empName,v_empicon,v_deptmnt,v_desigtn from mana0809.emp_master a left outer join mana0809.department_mst b on b.dep_id=a.DEPARTMENT_ID left outer join mana0809.designation_master c on c.designation_id=a.DESIGNATION_ID where a.EMP_CODE=dtl(3);
+        select d.major_dep_id into deptid from emp_master e, department_mst d where e.EMP_CODE = dtl(3) and d.dep_id = e.DEPARTMENT_ID;
+
+
+update SRM_TECHLEAD_STATUS s set s.status_id = 2,s.development_manpower = dtl(4),s.codereview = dtl(5), s.manpower = dtl(6), s.remarks = dtl(7), s.request_id =dtl(2),s.cost=dtl(10),s.module_complexity=dtl(13),S.Critical_Complexity=dtl(14),s.module_name=dtl(15)  where s.draft_no=dtl(1) and s.tech_lead = dtl(3) and s.status_id=1;
+update srm_software_request s set s.status_id = 20,s.tot_manpower=dtl(4),s.crf_cost=dtl(10) where s.request_id=dtl(2) and s.status_id=1;
+
+--select count(*) into cnt from SRM_TECHLEAD_STATUS s where s.draft_no=dtl(1) and s.tech_lead = dtl(3) and s.status_id=2;
+
+
+Select nvl(max(s.seq_no),0) into sl from SRM_MANPOWER_CALCULATOR  s ;
+
+Rows := splitstr(p_parval2,'¶');--1          2          3           4  5    6        7              8    9  10 11 12 13
+--0phase1^Forms^Medium Forms (10 H)^2^20^MINNU K.P^01-JUN-20^29/May/2020^1^2^10^2500^314706¶
+--phase1^Web/Win Service^Complicated  Service(10 H)^3^30^DIVIN  DAVIS^01/February/2021^03/February/2021^2^7^10^2500^357276^01-FEB-21¶
+--  1         2                         3           4 5    6                7                   8      9  10 11 12    13      14
+for i in 1..Rows.count-1 loop
+     Cols                    := splitstr(Rows(i),'^');
+     v_phase                 := Cols(1);
+     asigto                  := Cols(13);
+     tarstdt                 := Cols(7);
+     tarenddt                := Cols(8);
+     if Cols(15) <> 'null' then
+     v_change                := Cols(15);
+     else
+       v_change                := 0;
+       end if;
+     v_work                  := Cols(10);
+     v_cntno                 := Cols(4);
+     v_wrkval                := Cols(10);
+     v_wrkcost               := Cols(11);
+     v_devpname              := Cols(6);
+       v_manpower              := Cols(5);
+         v_crfcost             := Cols(9);
+sl:=sl+1;
+--end loop;
+insert into SRM_MANPOWER_CALCULATOR(REQUEST_ID, CHANGE_ID,  WORK_ID, NO_OF_CHANGES, WORK_VALUE, COST_CHANGE, PHASE, STATUS_ID, SEQ_NO, developer, start_dt, target_dt, dev_name,DRAFT_NO,MANPOWER,CRF_COST)
+                             values(dtl(2), v_change, v_work,v_cntno,  v_wrkval, v_wrkcost, v_phase, 1,sl, asigto, tarstdt, tarenddt, v_devpname,dtl(1),v_manpower,  v_crfcost  );
+
+select count(*) into v_cnt from   srm_request_assign t where t.request_id = dtl(2) and t.assign_to = asigto and t.status = 0;
+update srm_request_assign r set r.manpower=(select sum(t.manpower)from srm_manpower_calculator t         where t.request_id = dtl(2)and t.developer = asigto),r.crf_cost=(select sum(t.crf_cost)from srm_manpower_calculator t  where t.request_id = dtl(2)and t.developer = asigto)where r.request_id =dtl(2) and r.assign_to =asigto;
+
+
+
+
+if  v_cnt = 0 then
+  empnamelist             :=  Cols(6) ||','|| empnamelist;
+  empidlist               := asigto    ||','||empidlist;
+  select min(t.start_dt),max(t.target_dt) into strtdt,endtrdt  from SRM_MANPOWER_CALCULATOR t where t.request_id = dtl(2) and t.developer=asigto;
+insert into TBL_SRM_APPROVERS (DRAFT_NO,REQUEST_ID, APPROVER_ID, PARA_SEQ, ORDER_ID, STATUS_ID,Received_Date,APPROVER_NAME,Show_Status,SEQ_NO)
+                                  values(dtl(1),dtl(2), asigto,'S', 1,1 ,sysdate,Cols(6),1,6);
+insert into srm_request_assign(request_id,assign_to,manpower,assign_remark,target_date,status,slnum, tarstart_dt, draft_no,crf_cost)
+values                        (dtl(2)     ,asigto   ,dtl(4)  ,dtl(7)   ,endtrdt      ,0     ,sl, strtdt, dtl(1),dtl(9));
+commit;
+update srm_request_assign r set r.manpower=(select sum(t.manpower)from srm_manpower_calculator t         where t.request_id = dtl(2)and t.developer = asigto),r.crf_cost=(select sum(t.crf_cost)from srm_manpower_calculator t  where t.request_id = dtl(2)and t.developer = asigto)where r.request_id =dtl(2) and r.assign_to =asigto;
+commit;
+update srm_software_request s set s.tot_manpower=dtl(4),s.crf_cost=dtl(10) where s.request_id=dtl(2) and s.status_id=1;
+
+end if;
+
+end loop;
+update srm_draft_master d set d.tech_dependency=dtl(8) where d.draft_no=dtl(1);
+for due_rec in (select min(t.start_dt) as v_startdt, max(t.target_dt) as v_target, t.developer as v_developer, t.request_id as crfid   from SRM_MANPOWER_CALCULATOR t where t.request_id =  dtl(2) group by t.developer,t.request_id)
+loop
+update  srm_request_assign t set t.target_date = due_rec.v_target, t.tarstart_dt = due_rec.v_startdt where t.request_id = dtl(2) and t.assign_to=due_rec.v_developer ;
+end loop;
+------for routing crf's between joby and hridya
+select d.team_id into v_team from srm_draft_master d where d.draft_no=dtl(1);
+--if v_user_depelect t.member_id, e.EMP_NAME into testtl, testtlnamelist from Srm_It_Team_Members t, emp_master e where t.team_id = 6 and t.sub_team = 1 and e.EMP_CODE = t.member_id and t.jnr_team = 0;
+-- end if;id in(147,536,322,344,431,437,70,3,50,175,187,160,629,525,627,279,623,23,155,592,101,644) then
+  if v_team = 17 or v_team =41 or v_team = 21 then
+     select t.member_id, e.EMP_NAME into testtl, testtlnamelist from Srm_It_Team_Members t, emp_master e where t.team_id = 6 and t.sub_team = 4 and e.EMP_CODE = t.member_id and t.jnr_team = 0;
+  else
+    select count(m.emp_code) into testtl from srm_draft_master t,SRM_QA_TECHLEAD_MST m where  t.dep_id=m.dep_id and t.draft_no=dtl(1);
+    if testtl=1 then
+  select m.emp_code,e.emp_name into testtl, testtlnamelist from srm_draft_master t,SRM_QA_TECHLEAD_MST m,employee_master e where  e.emp_code=m.emp_code and t.dep_id=m.dep_id and t.draft_no=dtl(1);
+
+      else
+
+select t.member_id, e.EMP_NAME into testtl, testtlnamelist from mana0809.Srm_It_Team_Members t, mana0809.emp_master e where t.team_id = 6 and t.sub_team = 1 and e.EMP_CODE = t.member_id and t.jnr_team = 0;
+   end if;
+--else
+  --  if v_team = 17 or v_team =18 then
+   --    select t.member_id, e.EMP_NAME into testtl, testtlnamelist from Srm_It_Team_Members t, emp_master e where t.team_id = 18 and t.sub_team = 1 and e.EMP_CODE = t.member_id and t.jnr_team = 0;
+   -- else
+   --   select t.member_id, e.EMP_NAME into testtl, testtlnamelist from Srm_It_Team_Members t, emp_master e where t.team_id = 6 and t.sub_team = 2 and e.EMP_CODE = t.member_id and t.jnr_team = 0;
+  --  end if;
+end if;
+ empnamelist             :=empnamelist||','||testtlnamelist;
+  empidlist               :=empidlist||','||testtl;
+----------------------
+select replace(empnamelist,',,',',')into empnamelist from dual;
+select replace(empidlist,',,',',')into empidlist from dual;
+--JEEVA 115350--
+select t.module_type,t.related_module,t.priority into v_module_type,v_related_module,v_priorityy from srm_draft_master t where t.draft_no=dtl(1);
+select a.DEPARTMENT_ID,a.EMP_NAME,substr(replace (translate (initcap (REGEXP_REPLACE(REGEXP_REPLACE(a.EMP_NAME,'[.]',' '), '[^0-9A-Za-z .]', '')), ' abcdefghijklmnopqrstuvwxyz', ' '), ' '),1,2),b.dep_name,c.designation into v_dept,v_empName,v_empicon,v_deptmnt,v_desigtn from emp_master a left outer join department_mst b on b.dep_id=a.DEPARTMENT_ID left outer join designation_master c on c.designation_id=a.DESIGNATION_ID where a.EMP_CODE=dtl(3);
+-- END JEEVA 115350--
+seqid :=SEQ_TRACKER_ID.NEXTVAL;
+insert into TBL_TRACKER_WORK_LOG(NOTE_ID,SR_NO,STATUS,USER_ID,USER_NAME,USER_ICON,RECEIVED_DATE,UPDATED_DATE,REMARKS,Alert,DEP_NAME,DESIGNATION,REQUEST_ID,TO_EMP_IDS,TO_EMP_NAMES,SEQ_NO)
+           values(dtl(1) ,30,'Development TA Completed',dtl(3),v_empName,v_empicon,SYSDATE,sysdate,dtl(7),'TA Completed',v_deptmnt,v_desigtn,dtl(2),empidlist,empnamelist,seqid);
+
+           update TBL_SRM_APPROVERS t set t.status_id = 0 , t.updated_date = sysdate where t.draft_no = dtl(1) and t.approver_id = dtl(3) and t.status_id=1;
+--select count(*) into request_count from srm_software_request s where s.draft_id=dtl(1);
+--select count(*) into request_compleat_count from srm_software_request s where s.draft_id=dtl(1) and s.status_id=2;
+--if (request_count=request_compleat_count) then
+ --     select sum(s.development_manpower),sum(s.codereview),sum(s.manpower) into v_devlp, v_codervw,v_manpwr from SRM_TECHLEAD_STATUS s where s.draft_no=dtl(1);
+    update srm_draft_master jay set jay.status_id=36 where jay.draft_no=dtl(1);
+--end if;
+select dm.team_id,dm.objective into v_it_team,v_objective from srm_draft_master dm where dm.draft_no=dtl(1);
+select wl.received_date,wl.user_id into v_head_app_dt,v_head_app_by from TBL_TRACKER_WORK_LOG wl where wl.note_id=dtl(1) and wl.sr_no=5 and wl.status='TA Pending';
+--select e.EMP_NAME into v_tech_lead  from emp_master e where e.EMP_CODE=dtl(3);
+/*insert into srm_testing(request_id,it_team, objective,it_head_approve_dt,it_head_approve_by,tech_lead,tech_lead_approve_dt,draft_id,test_lead)
+   values(dtl(2),v_it_team,v_objective,v_head_app_dt,v_head_app_by,dtl(3),sysdate,dtl(1),testtl);
+ */
+ update srm_testing st set st.it_head_approve_dt=v_head_app_dt,st.it_head_approve_by=v_head_app_by,st.tech_lead=dtl(3),st.tech_lead_approve_dt=sysdate,st.test_lead=testtl where st.request_id=dtl(2);
+ --  1           2           3             4                               5                                 6                           7                         8               9
+   if dtl(11) <> -1 then
+
+   insert into tbl_request_type_updation
+  (draft_id,
+   request_id,
+   updated_date,
+   updated_user_id,
+   updated_user_name,
+   previous_requst_typ,
+   new_requst_typ,
+   status,
+   remarks,
+   designation,
+   dep_name,
+   previous_related_module,
+   new_related_module)
+values
+  (dtl(1),
+  dtl(2),
+  sysdate,
+  dtl(3),
+  v_empName,
+  v_module_type,
+  dtl(11),
+  0,
+  'REQUEST TYPE UPDATED',
+  v_desigtn,
+  v_deptmnt,
+  v_related_module,
+  dtl(12));
+  commit;
+  end if;
+  if dtl(11) <> -1 then
+    if dtl(11) = 2 then
+        update srm_draft_master t set t.module_type = dtl(11),t.related_module = dtl(12) where t.draft_no=dtl(1);
+ commit;
+ else
+   update srm_draft_master t set t.module_type = dtl(11),t.related_module = dtl(12) where t.draft_no=dtl(1);
+
+  commit;
+      end if;
+
+
+  end if;
+
+ --rb + 'µ' + infr + 'µ' + Prio + 'µ' + $("#ddlDept").val() + 'µ' + $("#txtmodule").val() + 'µ' + $("#txtspace").val() + 'µ' + $("#txtestimate").val() + 'µ' + Re + 'µ' + $("#txtreason").val() + 'µ';
+   -- imp  + 'µ' + rb + 'µ' + infr + 'µ' + Prio + 'µ' + $("#ddlDept").val() + 'µ' + $("#txtmodule").val() + 'µ' + $("#txtspace").val() + 'µ' + $("#txtestimate").val() + 'µ' + Re + 'µ' + $("#txtreason").val() + 'µ';
+    --  1         2            3            4                5                             6                           7                              8                       9                10                                                                 8
+  if p_parval3 is not null then
+    select count(*) into v_count from tbl_Tracker_crfwiseHDDepend t where t.crfid=dtl(1) and t.dept_id=0;
+    if v_count <> 0 then
+      v_info_sec:='Yes';
+      else
+        v_info_sec:='No';
+    end if;
+    datas:= splitstr(p_parval3,'µ');
+  --insert into TBL_TA_AUDIT(DRAFT_NO,REQUEST_ID, INFO_SECURITY,INFRA_CHANGE,RISK_CLASSIFICATION, CHANGE_IMPACT,NO_MODIFIE,DATA_GROWTH, TECHNICAL_REASON,ADDITIONAL_SPACE, SERVER_RESOURCE,RECIEVED_DATE)
+  -- values(dtl(1),dtl(2),datas(1),datas(2),datas(3),datas(4),datas(5),datas(7),datas(9),datas(6),datas(8),sysdate);
+  insert into TBL_TA_AUDIT(DRAFT_NO,REQUEST_ID, CHANGE_IMPACT,INFRA_CHANGE, RISK_CLASSIFICATION,IMPACT_DEP,NO_MODIFIE, DATA_GROWTH,TECHNICAL_REASON,ADDITIONAL_SPACE,SERVER_RESOURCE,RECIEVED_DATE)
+     values(dtl(1),dtl(2),'Nil',datas(1),datas(2),'Nil',datas(3),datas(5),datas(7),datas(4),datas(6),sysdate);
+     COMMIT;
+  end if;
+
+ select count(DISTINCT t.draft_no) INTO v_tabal
+              -- t.draft_no || '~' || s.request_id || '~' || t.objective
+          from mana0809.srm_draft_master     t,
+               mana0809.SRM_TECHLEAD_STATUS  u,
+               mana0809.srm_software_request s,
+               mana0809.tbl_tracker_work_log k
+         Where t.draft_no = u.draft_no
+         AND k.note_id = to_char(t.draft_no)
+           and t.status_id in (2,36)
+           and u.tech_lead = dtl(3)
+           and u.status_id = 1
+           and s.draft_id = t.draft_no
+           and s.status_id = 1
+           and u.request_id = s.request_id
+           and (trunc(sysdate) - to_date(k.received_date)) > 5
+           AND to_date(k.received_date)>to_date('01-dec-2022')
+           and t.status_id <> 22;
+
+           IF (v_tabal = 0) THEN
+             UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE t.emp_code = dtl(3) AND t.module_id=4000 AND to_date(t.block_dt)=to_date(sysdate);
+             COMMIT;
+             END IF;
+             select count(DISTINCT t.draft_no) INTO v_tabal
+              -- t.draft_no || '~' || s.request_id || '~' || t.objective
+          from mana0809.srm_draft_master     t,
+               mana0809.SRM_TECHLEAD_STATUS  u,
+               mana0809.srm_software_request s,
+               mana0809.tbl_tracker_work_log k
+         Where t.draft_no = u.draft_no
+         AND k.sr_no IN(2,5)
+         AND k.note_id = to_char(t.draft_no)
+           and t.status_id in (2,36)
+          and u.status_id = 1
+           and s.draft_id = t.draft_no
+           and s.status_id = 1
+           and u.request_id = s.request_id
+           and (trunc(sysdate) - to_date(k.received_date)) > 5
+           AND to_date(k.received_date)>to_date('01-dec-2022')
+           and t.status_id <> 22;
+
+           IF (v_tabal = 0) THEN
+             ------punch block remove for ams heads >5days
+             UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE  t.module_id=5001 AND to_date(t.block_dt)=to_date(sysdate);
+                         UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE  t.module_id=5002 AND to_date(t.block_dt)=to_date(sysdate);
+
+            COMMIT;
+             END IF;
+            
+   -----------
+  select count(DISTINCT t.draft_no) INTO v_tabal2
+              -- t.draft_no || '~' || s.request_id || '~' || t.objective
+          from mana0809.srm_draft_master     t,
+               mana0809.SRM_TECHLEAD_STATUS  u,
+               mana0809.srm_software_request s,
+               mana0809.tbl_tracker_work_log k
+         Where t.draft_no = u.draft_no
+         AND k.note_id = to_char(t.draft_no)
+           and t.status_id in (2,36)
+           and u.tech_lead = dtl(3)
+           and u.status_id = 1
+           and s.draft_id = t.draft_no
+           and s.status_id = 1
+           and u.request_id = s.request_id
+           and (trunc(sysdate) - to_date(k.received_date)) > 3
+           AND to_date(k.received_date)>to_date('01-dec-2022')
+           and t.status_id <> 22;
+
+           IF (v_tabal2 = 0) THEN
+             UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE t.emp_code = dtl(3) AND t.module_id=4001 AND to_date(t.block_dt)=to_date(sysdate);
+             COMMIT;
+             END IF;
+
+             select count(DISTINCT t.draft_no) INTO v_tabal2
+              -- t.draft_no || '~' || s.request_id || '~' || t.objective
+          from mana0809.srm_draft_master     t,
+               mana0809.SRM_TECHLEAD_STATUS  u,
+               mana0809.srm_software_request s,
+               mana0809.tbl_tracker_work_log k
+         Where t.draft_no = u.draft_no
+         AND k.note_id = to_char(t.draft_no)
+           and t.status_id in (2,36)
+          AND k.sr_no IN(3,23)
+           and u.status_id = 1
+           and s.draft_id = t.draft_no
+           and s.status_id = 1
+           and u.request_id = s.request_id
+           and (trunc(sysdate) - to_date(k.received_date)) > 3
+           AND to_date(k.received_date)>to_date('01-dec-2022')
+           and t.status_id <> 22;
+
+           IF (v_tabal2 = 0) THEN
+              ------punch block remove for ams heads>3days
+             UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE  t.module_id=5003 AND to_date(t.block_dt)=to_date(sysdate);
+             UPDATE tbl_punch_block t SET t.status=0,t.block_release_dt = SYSDATE WHERE  t.module_id=5004 AND to_date(t.block_dt)=to_date(sysdate);
+             COMMIT;
+             END IF;
+  open qry_result for select dtl(1) from dual;
+------------------------
+
+elsif  p_flag = 'TAReturn' then
+  dtl:=splitstr(p_parval1,'µ');
+        select a.DEPARTMENT_ID,a.EMP_NAME,substr(replace (translate (initcap (REGEXP_REPLACE(REGEXP_REPLACE(a.EMP_NAME,'[.]',' '), '[^0-9A-Za-z .]', '')), ' abcdefghijklmnopqrstuvwxyz', ' '), ' '),1,2),b.dep_name,c.designation into v_dept,v_empName,v_empicon,v_deptmnt,v_desigtn from employee_master a left outer join department_mst b on b.dep_id=a.DEPARTMENT_ID left outer join designation_master c on c.designation_id=a.DESIGNATION_ID where a.EMP_CODE=dtl(3);
+        select d.major_dep_id into deptid from employee_master e, department_mst d where e.EMP_CODE = dtl(3) and d.dep_id = e.DEPARTMENT_ID;
+         seqid :=SEQ_TRACKER_ID.NEXTVAL;
+         select t.user_id, t.status_id into v_user,v_status from srm_draft_master t where t.draft_no=dtl(2);
+         Select nvl(max(s.seq_no),0)+1 into v_editseq from SRM_DRAFT_MASTER_EDIT  s ;
+         update srm_draft_master s set s.status_id=22  where s.draft_no=dtl(1);
+
+         insert into TBL_TRACKER_WORK_LOG(NOTE_ID,SR_NO,STATUS,USER_ID,USER_NAME,USER_ICON,RECEIVED_DATE,UPDATED_DATE,REMARKS,Alert,DEP_NAME,DESIGNATION,SEQ_NO)
+           values(dtl(2) ,22,'Returned to User',dtl(3),v_empName,v_empicon,SYSDATE,sysdate,dtl(1),'Returned to User',v_deptmnt,v_desigtn,seqid);
+                   select t.to_emp_ids, t.to_emp_names into empidlist,empnamelist from TBL_TRACKER_WORK_LOG t where t.note_id=dtl(2) and t.sr_no = 0;
+
+            update TBL_TRACKER_WORK_LOG t set t.to_emp_ids = empidlist, t.to_emp_names = empnamelist where t.note_id=dtl(2) and t.sr_no=22;
+             update TBL_SRM_APPROVERS t set t.status_id = 0 , t.updated_date = sysdate where t.draft_no = dtl(2) and t.approver_id = dtl(1);
+              insert into TBL_SRM_APPROVERS (DRAFT_NO, APPROVER_ID, PARA_SEQ, ORDER_ID, STATUS_ID,Received_Date,APPROVER_NAME,Show_Status,SEQ_NO)
+                                                 values(dtl(2), empidlist,'S', 1,1 ,sysdate,empnamelist,1,seqid);
+
+              insert into SRM_DRAFT_MASTER_EDIT(DRAFT_NO,USER_ID,STATUS_ID,EMP_CODE,EMP_NAME,SEQ_NO,ENTER_DT)
+                                        values (dtl(2),v_user,v_status,dtl(3),v_empName,v_editseq,sysdate);
+             open qry_result for select dtl(2)||'µ4' from dual;
+
+--------------------
+elsif p_flag='CRFreject' then
+  v_usr := splitstr(p_pageval,'^');
+  select count(t.draft_no) into CRF_rjctCount from srm_draft_master t where t.draft_no = v_usr(1) ;
+  if (CRF_rjctCount > 0) then
+
+    update srm_draft_master t set t.status_id = 69 where t.draft_no = v_usr(1) ;
+    update srm_software_request t set t.status_id = 69 where t.draft_id = v_usr(1) ;
+   update srm_techlead_status t set t.status_id = 69 where t.draft_no = v_usr(1) ;
+    update srm_techlead_status t set t.remarks = v_usr(3) where t.draft_no = v_usr(1) ;
+    ----------selecting details
+    select a.DEPARTMENT_ID,
+       a.EMP_NAME,
+       substr(replace(translate(initcap(REGEXP_REPLACE(REGEXP_REPLACE(a.EMP_NAME,
+                                                                      '[.]',
+                                                                      ' '),
+                                                       '[^0-9A-Za-z .]',
+                                                       '')),
+                                ' abcdefghijklmnopqrstuvwxyz',
+                                ' '),
+                      ' '),
+              1,
+              2),
+       b.dep_name,
+       c.designation
+  into v_dept, v_empName, v_empicon, v_deptmnt, v_desigtn
+  from emp_master a
+  left outer join department_mst b
+    on b.dep_id = a.DEPARTMENT_ID
+  left outer join designation_master c
+    on c.designation_id = a.DESIGNATION_ID
+ where a.EMP_CODE = v_usr(2);
+select d.major_dep_id
+  into deptid
+  from emp_master e, department_mst d
+ where e.EMP_CODE =  v_usr(2)
+   and d.dep_id = e.DEPARTMENT_ID;
+    seqid :=SEQ_TRACKER_ID.NEXTVAL;
+    SELECT t.user_id,e.emp_name INTO empidlist,empnamelist FROM srm_draft_master t,employee_master e  WHERE t.user_id=e.emp_code AND t.draft_no = v_usr(1);
+    ----------
+   insert into TBL_TRACKER_WORK_LOG(NOTE_ID,SR_NO,STATUS,USER_ID,USER_NAME,USER_ICON,RECEIVED_DATE,UPDATED_DATE,REMARKS,Alert,DEP_NAME,DESIGNATION,REQUEST_ID,TO_EMP_IDS,TO_EMP_NAMES,SEQ_NO)
+values(v_usr(1),69,'CRF Rejected by Tech Lead',v_usr(2),v_empName,v_empicon,sysdate,sysdate,v_usr(3),'CRF Rejected by Tech Lead',v_deptmnt,v_desigtn,v_usr(4),empidlist,empnamelist,seqid);
+    commit;
+open qry_result for select '111' from dual;
+else
+  open qry_result for select '222' from dual;
+end if;
+
+------------------------
+end if;
+
+
+
+exception when others then
+   -- rollback to transstart;
+    v_ErrID:=SEQ_Itproject_ERRORID.nextval;
+    --p_OutMsg:='Oops..!Something Went Wrong...!'||v_ErrID;
+    v_ErrDesc   :=Sqlerrm;
+    v_ErrDtl    :=Sqlerrm || dbms_utility.format_error_backtrace ||
+           dbms_utility.format_error_stack ||dbms_utility.format_call_stack||'!-??-!'||p_pageval||'!-??-!'||p_parval1||'!-??-!'||p_parval2;
+    insert into TBL_ITPROJECTS_ERROR_DTL(error_id, proc_name, error_description, error_details, tra_dt,CRF_ID)
+                                values(v_ErrID,'srm_techlead_verification_new',v_ErrDesc,v_ErrDtl,sysdate,dtl(2));
+
+end srm_techlead_verification_new;

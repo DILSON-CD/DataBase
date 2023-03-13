@@ -1,0 +1,40 @@
+CREATE OR REPLACE FUNCTION business_hours_com(
+              in_start_dt IN DATE DEFAULT SYSDATE ,
+              in_end_dt   IN DATE DEFAULT SYSDATE ,p_emp_code varchar)
+            RETURN NUMBER DETERMINISTIC
+          IS
+            --  business_hours returns the number of work hours (9.30 am through 6.30 pm,
+            --  Monday through Friday) between in_start_dt and in_end_dt.
+            --  If in_start_dt > in_end_dt, the results will be <= 0.
+            d          NUMBER;                                    -- Hours of either start_dt or end_dt after midnight
+            end_dt     DATE := GREATEST (in_start_dt, in_end_dt); -- In case dates were in wrong order
+            return_val NUMBER;                                    -- Total number of working hours
+            start_dt   DATE := LEAST (in_start_dt, in_end_dt);    -- In case dates were in wrong order
+          BEGIN
+          WITH all_days AS
+            (SELECT TRUNC(start_dt) + LEVEL - 1 AS a_dt
+            FROM dual
+              CONNECT BY LEVEL <=  TRUNC (end_dt) - TRUNC (start_dt)
+            MINUS
+            SELECT f.hol_day FROM COMMON_HOLIDAY f, MANA0809.emp_master e where f.branch_id = e.BRANCH_ID
+           and e.EMP_CODE = p_emp_code
+            )
+          SELECT SUM(1)
+          INTO return_val
+          FROM all_days
+          WHERE TO_CHAR ( a_dt , 'Dy' , 'NLS_DATE_LANGUAGE = ''ENGLISH''' ) NOT IN ('Sun');
+          -- Adjust hours from start_dt, if necessary
+          IF TO_CHAR ( start_dt , 'Dy' , 'NLS_DATE_LANGUAGE = ''ENGLISH''' ) NOT IN ('Sun') THEN
+            d := 24 * (start_dt - TRUNC (start_dt));
+         
+          END IF;
+          -- Adjust hours from end_dt, if necessary
+          IF TO_CHAR ( end_dt , 'Dy' , 'NLS_DATE_LANGUAGE = ''ENGLISH''' ) NOT IN ('Sun') THEN
+            d := 24 * (end_dt - TRUNC (end_dt));
+          
+          END IF;
+          IF in_start_dt > in_end_dt THEN
+            return_val  := -return_val;
+          END IF;
+          RETURN return_val;
+        END business_hours_com;
